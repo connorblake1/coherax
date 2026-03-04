@@ -5,14 +5,15 @@ for comparison with floating-basis optimized codes.
 """
 
 import sys
-sys.path.insert(0, "../FiniteGKP/gkp_utils")
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
 
 import jax
 import jax.numpy as jnp
 import numpy as np
 from functools import partial
 
-from characteristic_jax_utils import (
+from coherax.characteristic_jax_utils import (
     CoherentKet,
     CoherentDM,
     BosonicSubspace,

@@ -6,8 +6,8 @@ The key identity is ⟨n|β⟩ = exp(-|β|²/2) β^n / √(n!), which converts t
 target |ψ⟩ = Σ c_n |n⟩.
 """
 
-import sys
-sys.path.insert(0, "/Users/cjblake/Documents/Github/jiang-research/FiniteGKP")
+import sys, os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
 
 import numpy as np
 import jax
@@ -18,7 +18,7 @@ import optax
 from functools import partial
 from jaxtyping import Array
 
-from gkp_utils.characteristic_jax_utils import (
+from coherax.characteristic_jax_utils import (
     g,
     channel_from_b,
     GKP_N,
