@@ -4,31 +4,20 @@ Provides code generators, mean photon number calculators, and fidelity evaluator
 for comparison with floating-basis optimized codes.
 """
 
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
-
 import jax
 import jax.numpy as jnp
 import numpy as np
-from functools import partial
 
-from coherax.characteristic_jax_utils import (
+from coherax import (
     CoherentKet,
     CoherentDM,
     BosonicSubspace,
     coherent_overlap,
-    aOmegab,
     gkp_coherent_dm,
     make_pureloss_fock,
     make_transpose_for_pureloss,
     apply_kraus_map,
-    apply_kraus_map_nonorm,
-    dqtrace,
-    dqdag,
     dqcoherent,
-    dqnumber,
-    dqfock_dm,
     GKP_N,
 )
 

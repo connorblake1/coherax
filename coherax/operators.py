@@ -1,0 +1,430 @@
+"""Low-level quantum operators, dynamiqs wrappers, and global constants.
+
+This module provides thin JAX-compatible wrappers around dynamiqs functions,
+Pauli operators, bosonic mode operators, and the Hilbert space truncation
+constant ``GKP_N``.
+"""
+
+from __future__ import annotations
+
+import math
+from functools import partial
+
+import dynamiqs as dq
+import jax
+import jax.numpy as jnp
+import jax.scipy.linalg as jla
+from jaxtyping import Array
+
+# ---------------------------------------------------------------------------
+# Hilbert space truncation
+# ---------------------------------------------------------------------------
+
+GKP_N: int = 100
+"""Fock-space truncation dimension for the bosonic mode."""
+
+# ---------------------------------------------------------------------------
+# dynamiqs → JAX wrappers
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def dqtensor(*args: Array) -> Array:
+    """Tensor product of operators via dynamiqs, returned as a JAX array."""
+    return dq.tensor(*args).to_jax()
+
+
+@jax.jit
+def dqdag(arg: Array) -> Array:
+    """Conjugate transpose via dynamiqs, returned as a JAX array."""
+    return dq.dag(arg).to_jax()
+
+
+@jax.jit
+def dag(arr: Array) -> Array:
+    """Pure-JAX conjugate transpose (no dynamiqs dependency)."""
+    return jnp.conj(arr.T)
+
+
+def dqeye(n: int) -> Array:
+    """Identity matrix of dimension *n*."""
+    return dq.eye(n).to_jax()
+
+
+def dqnumber(n: int) -> Array:
+    """Number operator :math:`\\hat{n}` truncated to *n* levels."""
+    return dq.number(n).to_jax()
+
+
+def dqdestroy(n: int) -> Array:
+    """Lowering (annihilation) operator truncated to *n* levels."""
+    return dq.destroy(n).to_jax()
+
+
+def dqcreate(n: int) -> Array:
+    """Raising (creation) operator truncated to *n* levels."""
+    return dq.create(n).to_jax()
+
+
+@jax.jit
+def dqtrace(arg: Array) -> Array:
+    """Trace of an operator."""
+    return dq.trace(arg)
+
+
+@partial(jax.jit, static_argnums=0)
+def dqdisplace(n: int, alpha: complex) -> Array:
+    """Displacement operator :math:`D(\\alpha)` truncated to *n* levels."""
+    return dq.displace(n, alpha).to_jax()
+
+
+@partial(jax.jit, static_argnums=0)
+def dqsqueeze(n: int, z: complex) -> Array:
+    """Squeeze operator :math:`S(z)` truncated to *n* levels."""
+    return dq.squeeze(n, z).to_jax()
+
+
+@partial(jax.jit, static_argnums=0)
+def dqfock_dm(n: int, k: int) -> Array:
+    """Fock-state density matrix :math:`|k\\rangle\\langle k|`."""
+    return dq.fock_dm(n, k).to_jax()
+
+
+@partial(jax.jit, static_argnums=0)
+def dqcoherent_dm(n: int, alpha: complex) -> Array:
+    """Coherent-state density matrix :math:`|\\alpha\\rangle\\langle\\alpha|`."""
+    return dq.coherent_dm(n, alpha).to_jax()
+
+
+@partial(jax.jit, static_argnums=0)
+def dqcoherent(n: int, alpha: complex) -> Array:
+    """Coherent-state ket :math:`|\\alpha\\rangle`."""
+    return dq.coherent(n, alpha).to_jax()
+
+
+@partial(jax.jit, static_argnums=(1, 2))
+def dqptrace(rho: Array, keep: int, dims: tuple[int, ...]) -> Array:
+    """Partial trace, keeping subsystem *keep*."""
+    return dq.ptrace(rho, keep, dims).to_jax()
+
+
+@jax.jit
+def dqexpect(O: Array, rho: Array) -> Array:
+    """Expectation value :math:`\\mathrm{Tr}[O \\rho]`."""
+    return dq.expect(O, rho)
+
+
+@jax.jit
+def dqtodm(psi: Array) -> Array:
+    """Convert a ket to a density matrix :math:`|\\psi\\rangle\\langle\\psi|`."""
+    return dq.todm(psi).to_jax()
+
+
+# ---------------------------------------------------------------------------
+# Symplectic geometry
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def aOmegab(a: Array, b: Array) -> Array:
+    r"""Symplectic inner product :math:`\operatorname{Re}(a)\operatorname{Im}(b)
+    - \operatorname{Im}(a)\operatorname{Re}(b)`.
+
+    Parameters
+    ----------
+    a, b : Array
+        Complex-valued arrays (broadcastable).
+
+    Returns
+    -------
+    Array
+        Real-valued symplectic product.
+    """
+    return jnp.real(a) * jnp.imag(b) - jnp.imag(a) * jnp.real(b)
+
+
+@jax.jit
+def e_n1iaOmegab(a: Array, b: Array) -> Array:
+    r"""Phase factor :math:`e^{-i\, a \Omega b}`."""
+    return jnp.exp(-1j * aOmegab(a, b))
+
+
+@jax.jit
+def coherent_overlap(alpha: Array, beta: Array) -> Array:
+    r"""Inner product :math:`\langle\alpha|\beta\rangle` of two coherent states.
+
+    Parameters
+    ----------
+    alpha, beta : Array
+        Complex amplitudes (broadcastable).
+
+    Returns
+    -------
+    Array
+        Complex overlap.
+    """
+    return jnp.exp(-0.5 * jnp.abs(alpha - beta) ** 2 + 1.0j * aOmegab(alpha, beta))
+
+
+# ---------------------------------------------------------------------------
+# Pre-built operators at GKP_N
+# ---------------------------------------------------------------------------
+
+root2: Array = jnp.sqrt(2.0)
+"""Square root of 2."""
+
+IN: Array = dqeye(GKP_N)
+"""Identity on the bosonic mode (GKP_N × GKP_N)."""
+
+I2: Array = dqeye(2)
+"""Identity on the qubit (2 × 2)."""
+
+sigma_x: Array = dq.sigmax().to_jax()
+"""Pauli X."""
+
+sigma_y: Array = dq.sigmay().to_jax()
+"""Pauli Y."""
+
+sigma_z: Array = dq.sigmaz().to_jax()
+"""Pauli Z."""
+
+n_hat: Array = dqnumber(GKP_N)
+"""Number operator :math:`\\hat{n}` at truncation ``GKP_N``."""
+
+a_op: Array = dqdestroy(GKP_N)
+"""Annihilation operator at truncation ``GKP_N``."""
+
+a_dag_op: Array = dqcreate(GKP_N)
+"""Creation operator at truncation ``GKP_N``."""
+
+x_quad: Array = (a_op + a_dag_op) / root2
+r"""Position quadrature :math:`\hat{x} = (\hat{a} + \hat{a}^\dagger)/\sqrt{2}`."""
+
+p_quad: Array = -1.0j * (a_op - a_dag_op) / root2
+r"""Momentum quadrature :math:`\hat{p} = -i(\hat{a} - \hat{a}^\dagger)/\sqrt{2}`."""
+
+ket0: Array = dq.fock(2, 0)
+"""Qubit ground state :math:`|0\\rangle`."""
+
+ket1: Array = dq.fock(2, 1)
+"""Qubit excited state :math:`|1\\rangle`."""
+
+# ---------------------------------------------------------------------------
+# Quantum channels
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def apply_kraus_map_nonorm(ops: Array, rho: Array) -> Array:
+    r"""Apply a Kraus map :math:`\sum_k K_k \rho K_k^\dagger` without normalizing.
+
+    Parameters
+    ----------
+    ops : Array, shape ``(K, N, N)``
+        Kraus operators.
+    rho : Array, shape ``(N, N)``
+        Input density matrix.
+
+    Returns
+    -------
+    Array, shape ``(N, N)``
+        Output density matrix (un-normalized).
+    """
+    return jnp.sum(jax.vmap(lambda op: op @ rho @ dqdag(op))(ops), axis=0)
+
+
+@jax.jit
+def apply_kraus_map(ops: Array, rho: Array) -> Array:
+    r"""Apply a Kraus map and trace-normalize the output.
+
+    Parameters
+    ----------
+    ops : Array, shape ``(K, N, N)``
+        Kraus operators.
+    rho : Array, shape ``(N, N)``
+        Input density matrix.
+
+    Returns
+    -------
+    Array, shape ``(N, N)``
+        Trace-normalized output density matrix.
+    """
+    rho_out = apply_kraus_map_nonorm(ops, rho)
+    return rho_out / dqtrace(rho_out)
+
+
+@jax.jit
+def apply_kraus_map_n(ops: Array, rho: Array, n: int) -> Array:
+    """Apply a Kraus map *n* times in sequence.
+
+    Parameters
+    ----------
+    ops : Array, shape ``(K, N, N)``
+        Kraus operators.
+    rho : Array, shape ``(N, N)``
+        Input density matrix.
+    n : int
+        Number of applications.
+
+    Returns
+    -------
+    Array, shape ``(N, N)``
+        Trace-normalized output after *n* rounds.
+    """
+
+    def body_loop(i: int, rho_loop: Array) -> Array:
+        return apply_kraus_map(ops, rho_loop)
+
+    rho_out = jax.lax.fori_loop(0, n, body_loop, rho)
+    return rho_out / dqtrace(rho_out)
+
+
+@jax.jit
+def compose_channel_kraus(ch1: Array, ch2: Array) -> Array:
+    """Compose two quantum channels in Kraus representation.
+
+    Returns Kraus operators for the channel ``ch1 ∘ ch2`` (ch2 applied first).
+
+    Parameters
+    ----------
+    ch1 : Array, shape ``(K1, N, N)``
+    ch2 : Array, shape ``(K2, N, N)``
+
+    Returns
+    -------
+    Array, shape ``(K1*K2, N, N)``
+    """
+    new_size = ch1.shape[0] * ch2.shape[0]
+    new_ops = jnp.zeros((new_size, ch1.shape[1], ch2.shape[2]), dtype=jnp.complex64)
+    for i in range(ch1.shape[0]):
+        for j in range(ch2.shape[0]):
+            new_ops = new_ops.at[i * ch2.shape[0] + j, :, :].set(
+                ch1[i, :, :] @ ch2[j, :, :]
+            )
+    return new_ops
+
+
+def make_pureloss_fock(gamma: float, rank: int, N: int = GKP_N) -> Array:
+    r"""Kraus operators for the pure-loss (amplitude damping) channel.
+
+    .. math::
+        K_l = \sqrt{\binom{}{} \frac{\gamma}{1-\gamma}}^{l/2}
+              \frac{\hat{a}^l}{\sqrt{l!}} e^{\frac{\ln(1-\gamma)}{2}\hat{n}}
+
+    Parameters
+    ----------
+    gamma : float
+        Loss probability in ``[0, 1)``.
+    rank : int
+        Number of Kraus operators (photon-loss truncation).
+    N : int
+        Hilbert space dimension.
+
+    Returns
+    -------
+    Array, shape ``(rank, N, N)``
+    """
+    n_op = dqnumber(N)
+    a_hat = dqdestroy(N)
+    return jnp.array(
+        [
+            (gamma / (1 - gamma)) ** (l / 2)
+            / jnp.sqrt(math.factorial(l))
+            * jnp.linalg.matrix_power(a_hat, l)
+            @ jla.expm(jnp.log(1 - gamma) * n_op / 2)
+            for l in range(rank)
+        ]
+    )
+
+
+def make_transpose_for_pureloss(
+    loss_ops: Array,
+    logical_0: "CoherentKet",  # noqa: F821  (forward ref)
+    logical_1: "CoherentKet",  # noqa: F821
+    eps: float = 1e-5,
+) -> Array:
+    r"""Petz transpose (near-optimal) recovery channel for pure loss.
+
+    Constructs :math:`\mathcal{R}^T` from the code projector
+    :math:`P_C = |0_L\rangle\langle 0_L| + |1_L\rangle\langle 1_L|`
+    and the loss channel Kraus operators.
+
+    Parameters
+    ----------
+    loss_ops : Array, shape ``(K, N, N)``
+        Kraus operators of the loss channel.
+    logical_0, logical_1 : CoherentKet
+        Logical code words.
+    eps : float
+        Eigenvalue cutoff for pseudo-inverse.
+
+    Returns
+    -------
+    Array, shape ``(K, N, N)``
+        Recovery Kraus operators.
+    """
+    P = logical_0.to_fock_basis() + logical_1.to_fock_basis()
+    loss_P = apply_kraus_map_nonorm(loss_ops, P)
+    loss_P_eigs, loss_P_vecs = jnp.linalg.eigh(loss_P)
+
+    def supp_invsqrt(arr: Array) -> Array:
+        return jnp.where(arr != 0, arr**-0.5, arr)
+
+    loss_P_eigs2 = supp_invsqrt(jnp.round(loss_P_eigs, decimals=int(-jnp.log10(eps))))
+    loss_P_invsqrt = loss_P_vecs @ jnp.diag(loss_P_eigs2) @ dqdag(loss_P_vecs)
+    inv_loss_ops = jnp.array(
+        [dqdag(loss_ops[i, :, :]) for i in range(loss_ops.shape[0])]
+    )
+    return jnp.array(
+        [P @ inv_loss_ops[i, :, :] @ loss_P_invsqrt for i in range(loss_ops.shape[0])]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Linear-algebra helpers
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def invsqrtm(A: Array) -> Array:
+    r"""Matrix inverse square root :math:`A^{-1/2}` via eigendecomposition."""
+    w, v = jnp.linalg.eigh(A)
+    return (v / jnp.sqrt(w)) @ dag(v)
+
+
+def sparse_eigh(O: Array, eps: float = 1e-6) -> tuple[Array, Array]:
+    """Eigendecomposition keeping only eigenvalues ≥ *eps*.
+
+    Parameters
+    ----------
+    O : Array, shape ``(N, N)``
+        Hermitian matrix.
+    eps : float
+        Eigenvalue threshold.
+
+    Returns
+    -------
+    eigenvalues : Array, shape ``(K,)``
+    eigenvectors : Array, shape ``(N, K)``
+    """
+    lambda_O, U_O = jnp.linalg.eigh(O)
+    mask = lambda_O >= eps
+    return lambda_O[mask], U_O[:, mask]
+
+
+def sparse_tensor_eigh(T: Array, eps: float = 1e-6) -> tuple[Array, Array]:
+    """Eigendecomposition of a rank-4 block-Hermitian tensor.
+
+    Reshapes ``T`` of shape ``(A, A, A, A)`` into ``(A², A²)`` before
+    calling :func:`sparse_eigh`.
+
+    Returns
+    -------
+    eigenvalues : Array, shape ``(K,)``
+    eigenmodes : Array, shape ``(A, A, K)``
+    """
+    A = T.shape[0]
+    M = jnp.reshape(T, (A * A, A * A))
+    w, U = sparse_eigh(M, eps=eps)
+    chis = jnp.reshape(U, (A, A, w.shape[0]))
+    return w, chis

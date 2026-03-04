@@ -5,6 +5,11 @@
 ```bash
 conda create -n coherax python=3.11 -y
 conda activate coherax
+pip install -e ".[dev]"
+```
+
+Or manually:
+```bash
 pip install \
   "jax[cpu]>=0.4.30,<0.7" \
   "dynamiqs>=0.3,<0.4" \
@@ -34,34 +39,35 @@ python fock_fidelity_claude.py               # Fock state preparation optimizati
 python benchmark_codes_claude.py             # Code comparison (cat, binomial, GKP)
 ```
 
-## Active Modules (coherax/)
+## Library Structure (coherax/)
 
-Only 5 modules are in the live dependency tree:
+The library is organized into 5 focused modules:
 
-- `characteristic_jax_utils.py` — core (self-contained): CoherentKet, BosonicSubspace, loss channels, JAX ops
-- `transpose_channel_claude.py` — transpose recovery, SBS baseline, F_e computation (imports characteristic_jax_utils)
-- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization (imports characteristic_jax_utils; lazy-imports coherent_tree_optimizer_claude)
-- `coherent_tree_optimizer_claude.py` — tree-structured optimization (imports characteristic_jax_utils + binary_tree_utils)
-- `binary_tree_utils.py` — binary tree Kraus structure (leaf dependency)
+- `operators.py` — dynamiqs wrappers, constants (GKP_N, sigma matrices, a_op, etc.), channels (pure loss, transpose recovery, Kraus maps), linear algebra helpers
+- `states.py` — CoherentKet, CoherentDM, BosonicSubspace classes
+- `circuits.py` — CD/ECD/rotation unitaries, TraceoutLayer, g(), channel_from_b(), circuit timing
+- `fidelity.py` — analytic fidelity computations (single, batched, with loss recovery)
+- `gkp.py` — GKP code state generators (square/rectangular lattice)
+
+Supporting modules:
+- `transpose_channel_claude.py` — transpose recovery, SBS baseline, F_e computation
+- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization (lazy-imports coherent_tree_optimizer_claude)
+- `coherent_tree_optimizer_claude.py` — tree-structured optimization
+- `binary_tree_utils.py` — binary tree Kraus structure
+- `characteristic_jax_utils.py` — backward-compat shim (re-exports everything from new modules)
 
 Everything else is in `coherax/deprecated/`.
 
 ## Data Files (testing_data/)
 
-The notebook loads `.npz` result files from `testing_data/`.
-
-Files needed (copy from `jiang-research/`):
-- `exp_C1_x3_100restart.npz` — from `QSP_replication/`
-- `exp_C2_x4_100restart.npz` — from `QSP_replication/`
-- `fock_preparation.npz` — from `FiniteGKP/fock_preparation/results/`
-- `cmaes_recovery_params.npz` — from `FiniteGKP/results/`
-- `extended_depth_sweep.npz` — from `FiniteGKP/results/`
-- `entanglement_fidelity_benchmark.npz` — from `FiniteGKP/results/`
-- `results_vacuum.npz` — from `floating_basis/`
-- `results_Ic_improvements.npz` — from `floating_basis/`
-- `floating_prep_results.npz` — from `QSP_replication/`
-- `Ic_comparison_results.npz` — from `QSP_replication/`
-- `fourier_saved.npy` — from `FiniteGKP/gkp_utils/` (precomputed Fourier coefficients)
+The notebook loads `.npz` result files from `testing_data/`:
+- `exp_C1_x3_100restart.npz`, `exp_C2_x4_100restart.npz` — 1D marginal prep params
+- `fock_preparation.npz` — Fock state preparation results
+- `cmaes_recovery_params.npz`, `extended_depth_sweep.npz` — CMA-ES recovery params
+- `entanglement_fidelity_benchmark.npz` — benchmark comparison data
+- `results_vacuum.npz`, `results_Ic_improvements.npz` — floating-basis results
+- `floating_prep_results.npz`, `Ic_comparison_results.npz` — I_c comparison data
+- `fourier_saved.npy` — precomputed Fourier coefficients
 
 ## Key Constants
 
@@ -74,14 +80,10 @@ Files needed (copy from `jiang-research/`):
 - All JAX code uses `jax.config.update("jax_enable_x64", True)` for double precision
 - The `_claude` suffix on filenames is a provenance marker (Claude-assisted authoring)
 - StrawberryFields is only used in `coherax/deprecated/utils.py` for GKP Fock-basis state generation
-- `fourier_saved.npy` is loaded by `coherax/deprecated/utils.py` — path updated to use `testing_data/`
 
 ## TODO
 
-- [ ] Aggressively lint all active files: remove dead imports, unused functions, commented-out code, and unreachable branches
-- [ ] Lint `coherax/deprecated/` files similarly before deciding what to permanently delete vs keep
-- [ ] Update notebook to load from `testing_data/` and save figures to `figs/` (still uses hardcoded jiang-research BASE path)
-- [ ] Decide whether `coherent_tree_optimizer_claude.py` and `binary_tree_utils.py` should also be deprecated (only reachable via a lazy import in worstcase_optimizer_claude.py)
-- [ ] Add `pyproject.toml` or `setup.py` for proper packaging
-- [ ] Add `.gitignore` for `__pycache__/`, `*.pyc`, `.ipynb_checkpoints/`
-- [ ] Choose a license
+- [x] Aggressively lint all active files: remove dead imports, unused functions, commented-out code
+- [x] Lint `coherax/deprecated/` — deleted 8 redundant files, kept 28 with unique experimental code
+- [x] `coherent_tree_optimizer_claude.py` and `binary_tree_utils.py` moved to deprecated/ (only reachable via lazy import in __main__ block)
+- [ ] Connect ReadTheDocs to GitHub repo via readthedocs.org dashboard

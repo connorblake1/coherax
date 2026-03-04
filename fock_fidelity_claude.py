@@ -6,9 +6,6 @@ The key identity is ⟨n|β⟩ = exp(-|β|²/2) β^n / √(n!), which converts t
 target |ψ⟩ = Σ c_n |n⟩.
 """
 
-import sys, os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__))))
-
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -18,30 +15,11 @@ import optax
 from functools import partial
 from jaxtyping import Array
 
-from coherax.characteristic_jax_utils import (
+from coherax import (
     g,
     channel_from_b,
     GKP_N,
-    dqcoherent,
-    dqdisplace,
-    dqfock_dm,
 )
-
-
-@jax.jit
-def fock_coherent_overlap(beta: complex, n: int) -> complex:
-    """Compute ⟨n|β⟩ = exp(-|β|²/2) β^n / √(n!) in numerically stable form."""
-    log_amp = -0.5 * jnp.abs(beta) ** 2 + n * jnp.log(beta + 0j) - 0.5 * jsp.gammaln(n + 1.0)
-    return jnp.exp(log_amp)
-
-
-@jax.jit
-def fock_coherent_overlap_real(beta: complex, n: int) -> complex:
-    """Compute ⟨n|β⟩ for real β (avoids log of negative numbers)."""
-    log_mag = -0.5 * jnp.abs(beta) ** 2 + n * jnp.log(jnp.abs(beta) + 1e-30) - 0.5 * jsp.gammaln(n + 1.0)
-    # phase from β^n when β can be negative
-    phase = jnp.where(jnp.real(beta) < 0, (-1.0 + 0j) ** n, 1.0 + 0j)
-    return jnp.exp(log_mag) * phase
 
 
 @partial(jax.jit, static_argnums=2)

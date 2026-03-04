@@ -21,11 +21,10 @@ import jax.random as jr
 import numpy as np
 import optax
 from functools import partial
-from jaxtyping import Array
 import sys
 import time
 
-from coherax.characteristic_jax_utils import (
+from coherax import (
     CoherentKet,
     coherent_overlap,
     aOmegab,
@@ -34,7 +33,6 @@ from coherax.characteristic_jax_utils import (
     make_pureloss_fock,
     apply_kraus_map_nonorm,
     GKP_N,
-    dqdag,
     dqcoherent,
     channel_from_b,
     dag,
@@ -182,86 +180,6 @@ def worst_case_fidelity_grid(
 
 
 @jax.jit
-def worst_case_fidelity_adversarial_step(
-    alpha, beta, c_0, d_0, c_1, d_1, gamma, theta, phi, lr=0.1
-):
-    """
-    One step of gradient descent to find worst-case state.
-
-    Takes a gradient step to minimize fidelity w.r.t. (theta, phi).
-    """
-    def neg_fidelity(angles):
-        theta, phi = angles[0], angles[1]
-        c_psi, d_psi = bloch_state_coeffs(theta, phi, c_0, d_0, c_1, d_1)
-        return -state_fidelity_single_coherent(alpha, beta, c_psi, d_psi, gamma)
-
-    angles = jnp.array([theta, phi])
-    grad = jax.grad(neg_fidelity)(angles)
-
-    # Gradient step
-    new_theta = jnp.clip(theta - lr * grad[0], 0.001, jnp.pi - 0.001)
-    new_phi = (phi - lr * grad[1]) % (2 * jnp.pi)
-
-    return new_theta, new_phi
-
-
-def worst_case_fidelity_adversarial(
-    alpha, beta, c_0, d_0, c_1, d_1, gamma,
-    n_init=8, n_steps=50, lr=0.1
-):
-    """
-    Find worst-case state using gradient-based adversarial search.
-
-    Initializes from multiple starting points and runs gradient descent
-    to minimize fidelity.
-
-    Args:
-        alpha, beta: recovery Kraus operators
-        c_0, d_0, c_1, d_1: logical state parameters
-        gamma: loss parameter
-        n_init: number of random initializations
-        n_steps: gradient descent steps per init
-        lr: learning rate
-
-    Returns:
-        min_F: worst-case fidelity
-        worst_theta, worst_phi: angles of worst-case state
-    """
-    # Initialize from special points + random
-    init_thetas = [0.0, jnp.pi/2, jnp.pi, jnp.pi/4, 3*jnp.pi/4]
-    init_phis = [0.0, jnp.pi/2, jnp.pi, 3*jnp.pi/2, jnp.pi/4]
-
-    # Add random initializations
-    key = jr.PRNGKey(42)
-    for _ in range(n_init - len(init_thetas)):
-        key, k1, k2 = jr.split(key, 3)
-        init_thetas.append(float(jr.uniform(k1) * jnp.pi))
-        init_phis.append(float(jr.uniform(k2) * 2 * jnp.pi))
-
-    best_F = 1.0
-    best_theta, best_phi = 0.0, 0.0
-
-    for theta0, phi0 in zip(init_thetas[:n_init], init_phis[:n_init]):
-        theta, phi = theta0, phi0
-
-        for _ in range(n_steps):
-            theta, phi = worst_case_fidelity_adversarial_step(
-                alpha, beta, c_0, d_0, c_1, d_1, gamma,
-                theta, phi, lr
-            )
-
-        # Evaluate final fidelity
-        c_psi, d_psi = bloch_state_coeffs(theta, phi, c_0, d_0, c_1, d_1)
-        F = float(state_fidelity_single_coherent(alpha, beta, c_psi, d_psi, gamma))
-
-        if F < best_F:
-            best_F = F
-            best_theta = float(theta)
-            best_phi = float(phi)
-
-    return best_F, best_theta, best_phi
-
-
 # ============================================================
 # ENTANGLEMENT FIDELITY (AVERAGE-CASE, FOR COMPARISON)
 # ============================================================
@@ -329,37 +247,6 @@ def entanglement_fidelity_displacement(alpha, beta, c_0, d_0, c_1, d_1, gamma):
 # ============================================================
 # SOFT-MINIMUM FOR DIFFERENTIABLE WORST-CASE
 # ============================================================
-
-@partial(jax.jit, static_argnums=(7, 8))
-def soft_min_fidelity(
-    alpha, beta, c_0, d_0, c_1, d_1, gamma,
-    n_theta=12, n_phi=24, temperature=0.05
-):
-    """
-    Differentiable soft-minimum fidelity over Bloch sphere.
-
-    Uses softmin: F_soft = sum_i F_i * exp(-F_i/T) / sum_i exp(-F_i/T)
-
-    As temperature -> 0, this approaches the true minimum.
-    """
-    thetas = jnp.linspace(0.01, jnp.pi - 0.01, n_theta)
-    phis = jnp.linspace(0, 2 * jnp.pi, n_phi, endpoint=False)
-
-    def compute_fidelity_at_angles(theta, phi):
-        c_psi, d_psi = bloch_state_coeffs(theta, phi, c_0, d_0, c_1, d_1)
-        return state_fidelity_single_coherent(alpha, beta, c_psi, d_psi, gamma)
-
-    Theta, Phi = jnp.meshgrid(thetas, phis, indexing='ij')
-    fidelities = jax.vmap(
-        lambda t, p: compute_fidelity_at_angles(t, p)
-    )(Theta.ravel(), Phi.ravel())
-
-    # Softmin
-    weights = jnp.exp(-fidelities / temperature)
-    soft_min = jnp.sum(fidelities * weights) / jnp.sum(weights)
-
-    return soft_min
-
 
 @partial(jax.jit, static_argnums=(7, 8))
 def logsumexp_min_fidelity(
@@ -527,127 +414,6 @@ def optimize_worstcase_cmaes(
         'n_improved': n_improved,
         'total_time': elapsed_total,
     }
-
-
-# ============================================================
-# GRADIENT-BASED WORST-CASE OPTIMIZATION (SOFT MIN)
-# ============================================================
-
-def optimize_worstcase_gradient(
-    logical_0, logical_1, gamma,
-    N_depth=6,
-    lr=0.003,
-    steps=3000,
-    restarts=5,
-    n_theta=12,
-    n_phi=24,
-    temperature=0.05,
-    random_dist=3.0,
-    random_angle=1.0,
-    verbose=True,
-):
-    """
-    Gradient-based optimization for worst-case fidelity.
-
-    Uses differentiable soft-min over Bloch sphere grid.
-
-    Args:
-        logical_0, logical_1: CoherentKet GKP logical states
-        gamma: loss parameter
-        N_depth: CD+R circuit depth
-        lr, steps, restarts: optimization parameters
-        n_theta, n_phi: Bloch sphere grid resolution
-        temperature: softmin temperature (lower = closer to true min)
-        random_dist, random_angle: initialization scales
-        verbose: print progress
-
-    Returns:
-        best_params: (N_depth, 4) optimized circuit parameters
-        best_Fwc: best worst-case fidelity
-    """
-    N_l = 2 ** N_depth
-
-    def loss_fn(params):
-        alpha, beta = g(params, N_l)
-        # Use log-sum-exp for numerical stability
-        soft_min = logsumexp_min_fidelity(
-            alpha, beta,
-            logical_0.cs, logical_0.ds,
-            logical_1.cs, logical_1.ds,
-            gamma, n_theta, n_phi, temperature
-        )
-        return (1.0 - soft_min).real
-
-    grad_fn = jax.jit(jax.value_and_grad(loss_fn))
-    eval_fn = jax.jit(loss_fn)
-
-    # Also compute true worst-case for monitoring
-    @jax.jit
-    def true_worstcase(params):
-        alpha, beta = g(params, N_l)
-        Fwc, _, _ = worst_case_fidelity_grid(
-            alpha, beta,
-            logical_0.cs, logical_0.ds,
-            logical_1.cs, logical_1.ds,
-            gamma, n_theta, n_phi
-        )
-        return Fwc
-
-    best_loss = 1.0
-    best_params = None
-
-    for restart in range(restarts):
-        key = jr.PRNGKey(np.random.randint(100000))
-        k1, k2, k3, key = jr.split(key, 4)
-
-        params = jnp.zeros((N_depth, 4), jnp.complex64)
-        params = params.at[:, 1:].set(
-            2 * random_angle * jnp.pi * jr.uniform(key=k2, shape=(N_depth, 3))
-        )
-        params = params.at[:, 0].set(
-            random_dist * jr.normal(key=k1, shape=(N_depth,))
-            + random_dist * 1j * jr.normal(key=k3, shape=(N_depth,))
-        )
-
-        schedule = optax.warmup_cosine_decay_schedule(
-            init_value=lr * 0.1,
-            peak_value=lr,
-            warmup_steps=steps // 20,
-            decay_steps=steps,
-            end_value=lr * 0.01,
-        )
-        optimizer = optax.adam(schedule)
-        opt_state = optimizer.init(params)
-
-        for step in range(steps):
-            loss, grads = grad_fn(params)
-            updates, opt_state = optimizer.update(jnp.conj(grads), opt_state)
-            params = optax.apply_updates(params, updates)
-            params = params.at[:, 3].set(jnp.zeros(N_depth))
-
-            if verbose and step % 500 == 0:
-                Fwc_true = float(true_worstcase(params))
-                print(f"    restart {restart}, step {step}: "
-                      f"soft_Fwc={1-float(loss):.6f}, true_Fwc={Fwc_true:.6f}")
-                sys.stdout.flush()
-
-        final_loss = float(eval_fn(params))
-        Fwc_final = float(true_worstcase(params))
-
-        if verbose:
-            print(f"    restart {restart} final: Fwc={Fwc_final:.6f}")
-            sys.stdout.flush()
-
-        if final_loss < best_loss:
-            best_loss = final_loss
-            best_params = jnp.array(params)
-            if verbose:
-                print(f"    >> New best! Fwc={Fwc_final:.6f}")
-                sys.stdout.flush()
-
-    # Return true worst-case of best params
-    best_Fwc = float(true_worstcase(best_params))
-    return best_params, best_Fwc
 
 
 # ============================================================
@@ -1052,7 +818,7 @@ if __name__ == "__main__":
 
     # Import from coherent_tree_optimizer_claude
     try:
-        from coherax.coherent_tree_optimizer_claude import optimize_cmaes_flat
+        from coherax.deprecated.coherent_tree_optimizer_claude import optimize_cmaes_flat
 
         params_avg, Fe_opt, avg_info = optimize_cmaes_flat(
             logical_0, logical_1, gamma,

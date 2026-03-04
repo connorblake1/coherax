@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coherax"
+version = "0.1.0"
+description = "Coherent-basis optimization for bosonic quantum error-correcting codes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Connor Blake"},
+    {name = "Liang Jiang"},
+]
+keywords = ["quantum", "error-correction", "GKP", "bosonic", "JAX"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "jax>=0.4.30",
+    "jaxlib>=0.4.30",
+    "dynamiqs>=0.3",
+    "optax>=0.2",
+    "equinox>=0.11",
+    "jaxtyping>=0.2",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "scipy>=1.12,<1.14",
+    "sympy>=1.12",
+    "strawberryfields>=0.23",
+    "cma>=3.3",
+]
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-rtd-theme>=2.0",
+    "sphinx-autodoc-typehints>=2.0",
+    "myst-parser>=3.0",
+]
+dev = [
+    "pytest>=8.0",
+    "ipykernel",
+    "jupyter",
+]
+
+[project.urls]
+Repository = "https://github.com/connorblake1/coherax"
+Documentation = "https://coherax.readthedocs.io"
+
+[tool.setuptools.packages.find]
+include = ["coherax*"]
+exclude = ["coherax.deprecated*"]
