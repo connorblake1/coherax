@@ -1,8 +1,4 @@
-# coherax
-
-Coherent-basis optimization toolkit for bosonic quantum error-correcting codes.
-Provides analytic closed-form fidelity formulas, CD+R circuit optimization,
-transpose channel recovery, floating-basis codes, and coherent information benchmarks.
+# coherax — Development Notes
 
 ## Environment Setup
 
@@ -33,48 +29,39 @@ which was removed in scipy 1.14.
 All commands should be run from the repo root with `conda activate coherax`.
 
 ```bash
-# Run the notebook
 jupyter notebook aggregated_results.ipynb    # select "Python (coherax)" kernel
-
-# Run tests
-pytest coherax/verification.py -v
-
-# Run individual scripts
-python -m coherax.benchmark_claude          # GKP recovery benchmark
-python fock_fidelity_claude.py                # Fock state preparation optimization
-python benchmark_codes_claude.py              # Code comparison (cat, binomial, GKP)
+python fock_fidelity_claude.py               # Fock state preparation optimization
+python benchmark_codes_claude.py             # Code comparison (cat, binomial, GKP)
 ```
 
-## Project Structure
+## Active Modules (coherax/)
 
-```
-coherax/
-├── aggregated_results.ipynb      # Main results notebook (8 sections)
-├── benchmark_codes_claude.py     # Cat/binomial/GKP code generators & benchmarks
-├── fock_fidelity_claude.py       # Analytic Fock fidelity & CD+R circuit optimization
-├── coherax/                    # Core library
-│   ├── characteristic_jax_utils.py   # CoherentKet, BosonicSubspace, loss channels, JAX ops
-│   ├── transpose_channel_claude.py   # Transpose recovery, SBS baseline, F_e computation
-│   ├── worstcase_optimizer_claude.py # CMA-ES worst-case fidelity optimization
-│   ├── utils.py                      # GKP constants, quantum operators, Kraus maps
-│   ├── analytic_utils.py             # Symbolic circuit representations
-│   ├── jax_analytic_utils.py         # JAX circuit layers (JLayer/Equinox)
-│   ├── verification.py               # Pytest test suite
-│   ├── fourier_saved.npy             # Precomputed Fourier coefficients (committed)
-│   └── ...                           # Optimizer scripts, sweep scripts, etc.
-└── data/                          # Saved results (.npz files) — see below
-```
+Only 5 modules are in the live dependency tree:
 
-## Data Files
+- `characteristic_jax_utils.py` — core (self-contained): CoherentKet, BosonicSubspace, loss channels, JAX ops
+- `transpose_channel_claude.py` — transpose recovery, SBS baseline, F_e computation (imports characteristic_jax_utils)
+- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization (imports characteristic_jax_utils; lazy-imports coherent_tree_optimizer_claude)
+- `coherent_tree_optimizer_claude.py` — tree-structured optimization (imports characteristic_jax_utils + binary_tree_utils)
+- `binary_tree_utils.py` — binary tree Kraus structure (leaf dependency)
 
-The notebook loads `.npz` result files. These must be placed in `data/` relative
-to the repo root. The notebook's `BASE` variable should point here.
+Everything else is in `coherax/deprecated/`.
 
-Files needed (copy from `jiang-research/FiniteGKP/`):
-- `data/fock_preparation.npz` — from `fock_preparation/results/fock_preparation.npz`
-- `data/cmaes_recovery_params.npz` — from `results/cmaes_recovery_params.npz`
-- `data/extended_depth_sweep.npz` — from `results/extended_depth_sweep.npz`
-- `data/entanglement_fidelity_benchmark.npz` — from `results/entanglement_fidelity_benchmark.npz`
+## Data Files (testing_data/)
+
+The notebook loads `.npz` result files from `testing_data/`.
+
+Files needed (copy from `jiang-research/`):
+- `exp_C1_x3_100restart.npz` — from `QSP_replication/`
+- `exp_C2_x4_100restart.npz` — from `QSP_replication/`
+- `fock_preparation.npz` — from `FiniteGKP/fock_preparation/results/`
+- `cmaes_recovery_params.npz` — from `FiniteGKP/results/`
+- `extended_depth_sweep.npz` — from `FiniteGKP/results/`
+- `entanglement_fidelity_benchmark.npz` — from `FiniteGKP/results/`
+- `results_vacuum.npz` — from `floating_basis/`
+- `results_Ic_improvements.npz` — from `floating_basis/`
+- `floating_prep_results.npz` — from `QSP_replication/`
+- `Ic_comparison_results.npz` — from `QSP_replication/`
+- `fourier_saved.npy` — from `FiniteGKP/gkp_utils/` (precomputed Fourier coefficients)
 
 ## Key Constants
 
@@ -86,4 +73,15 @@ Files needed (copy from `jiang-research/FiniteGKP/`):
 
 - All JAX code uses `jax.config.update("jax_enable_x64", True)` for double precision
 - The `_claude` suffix on filenames is a provenance marker (Claude-assisted authoring)
-- StrawberryFields is only used in `coherax/utils.py` for GKP Fock-basis state generation
+- StrawberryFields is only used in `coherax/deprecated/utils.py` for GKP Fock-basis state generation
+- `fourier_saved.npy` is loaded by `coherax/deprecated/utils.py` — path updated to use `testing_data/`
+
+## TODO
+
+- [ ] Aggressively lint all active files: remove dead imports, unused functions, commented-out code, and unreachable branches
+- [ ] Lint `coherax/deprecated/` files similarly before deciding what to permanently delete vs keep
+- [ ] Update notebook to load from `testing_data/` and save figures to `figs/` (still uses hardcoded jiang-research BASE path)
+- [ ] Decide whether `coherent_tree_optimizer_claude.py` and `binary_tree_utils.py` should also be deprecated (only reachable via a lazy import in worstcase_optimizer_claude.py)
+- [ ] Add `pyproject.toml` or `setup.py` for proper packaging
+- [ ] Add `.gitignore` for `__pycache__/`, `*.pyc`, `.ipynb_checkpoints/`
+- [ ] Choose a license
