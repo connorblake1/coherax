@@ -7,6 +7,7 @@ for comparison with floating-basis optimized codes.
 import jax
 import jax.numpy as jnp
 import numpy as np
+import scipy.special as sp
 
 from coherax import (
     CoherentKet,
@@ -18,6 +19,11 @@ from coherax import (
     make_transpose_for_pureloss,
     apply_kraus_map,
     dqcoherent,
+    dqdestroy,
+    dqcreate,
+    dqdisplace,
+    dqnumber,
+    dqsqueeze,
     GKP_N,
 )
 
@@ -281,6 +287,67 @@ def benchmark_all(gamma: float, target_nbar: float, loss_rank: int = 20):
     results["gkp_delta"] = float(delta)
 
     return results
+
+
+# ── Singh GKP code constructors ─────────────────────────────────────────────
+
+
+def singh_gkp_gaussian(
+    mu: int,
+    Delta: float,
+    N_fock: int = GKP_N,
+    n_terms: int = 15,
+) -> jnp.ndarray:
+    """Singh et al. Gaussian-envelope displaced-squeezed GKP (1D).
+
+    Returns a Fock-basis ket vector.
+    """
+    r = -np.log(Delta)
+    a = np.sqrt(np.pi / 2)
+    S_r = dqsqueeze(N_fock, r)
+    vac = jnp.zeros(N_fock, dtype=jnp.complex128).at[0].set(1.0)
+    squeezed_vac = S_r @ vac
+    psi = jnp.zeros(N_fock, dtype=jnp.complex128)
+    for n in range(-n_terms, n_terms + 1):
+        coeff = np.exp(-np.pi * Delta**2 * (2 * n + mu) ** 2 / 4.0)
+        D_n = dqdisplace(N_fock, (2 * n + mu) * a)
+        psi = psi + coeff * (D_n @ squeezed_vac)
+    return psi / jnp.linalg.norm(psi)
+
+
+def singh_gkp_binomial(
+    mu: int,
+    Delta: float,
+    N_fock: int = GKP_N,
+    N_binom: int | None = None,
+) -> jnp.ndarray:
+    """Singh et al. binomial-envelope displaced-squeezed GKP (1D).
+
+    Returns a Fock-basis ket vector.
+    """
+    r = -np.log(Delta)
+    a = np.sqrt(np.pi / 2)
+    if N_binom is None:
+        N_binom = int(0.32 / Delta**2)
+    S_r = dqsqueeze(N_fock, r)
+    vac = jnp.zeros(N_fock, dtype=jnp.complex128).at[0].set(1.0)
+    squeezed_vac = S_r @ vac
+    psi = jnp.zeros(N_fock, dtype=jnp.complex128)
+    n_lo = -int((N_binom + mu) / 2)
+    n_hi = int((N_binom + mu) / 2) - mu
+    for n in range(n_lo, n_hi + 1):
+        binom_coeff = np.sqrt(
+            float(sp.comb(N_binom, n + mu + int(N_binom / 2), exact=True))
+        )
+        D_n = dqdisplace(N_fock, (2 * n + mu) * a)
+        psi = psi + binom_coeff * (D_n @ squeezed_vac)
+    return psi / jnp.linalg.norm(psi)
+
+
+def nbar_fock_ket(psi: jnp.ndarray) -> float:
+    """Mean photon number from a Fock-basis ket vector."""
+    n_hat = dqnumber(psi.shape[0])
+    return float(jnp.real(jnp.conj(psi) @ n_hat @ psi))
 
 
 if __name__ == "__main__":

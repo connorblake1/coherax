@@ -42,6 +42,7 @@ from coherax.operators import (
     ket0,
     ket1,
     make_pureloss_fock,
+    make_thermalloss_fock,
     make_transpose_for_pureloss,
     n_hat,
     p_quad,
@@ -51,6 +52,7 @@ from coherax.operators import (
     sigma_z,
     sparse_eigh,
     sparse_tensor_eigh,
+    von_neumann_entropy,
     x_quad,
 )
 
@@ -87,7 +89,19 @@ from coherax.fidelity import (
     analytic_pureloss_recovery_fidelity_thetaphi_iab,
 )
 
-from coherax.gkp import gkp_coherent_dm
+from coherax.gkp import (
+    fock_wavefunctions,
+    gkp_coherent_dm,
+    gkp_x_error_rate,
+    stabilizer_expectations,
+    x_marginal,
+)
+
+from coherax.info import (
+    coherent_info_from_coherent_kets,
+    coherent_info_from_kets,
+    coherent_info_thermal_fock,
+)
 
 __all__ = [
     # operators
@@ -100,7 +114,8 @@ __all__ = [
     "dqtrace", "dqdisplace", "dqsqueeze", "dqfock_dm", "dqcoherent_dm",
     "dqcoherent", "dqptrace", "dqexpect", "dqtodm",
     "apply_kraus_map", "apply_kraus_map_n", "apply_kraus_map_nonorm",
-    "compose_channel_kraus", "make_pureloss_fock", "make_transpose_for_pureloss",
+    "compose_channel_kraus", "make_pureloss_fock", "make_thermalloss_fock",
+    "make_transpose_for_pureloss", "von_neumann_entropy",
     # states
     "CoherentKet", "CoherentDM", "BosonicSubspace",
     # circuits
@@ -117,5 +132,9 @@ __all__ = [
     "analytic_pureloss_recovery_fidelity_thetaphi",
     "analytic_pureloss_recovery_fidelity_thetaphi_iab",
     # gkp
-    "gkp_coherent_dm",
+    "gkp_coherent_dm", "stabilizer_expectations", "fock_wavefunctions",
+    "x_marginal", "gkp_x_error_rate",
+    # info
+    "coherent_info_from_kets", "coherent_info_from_coherent_kets",
+    "coherent_info_thermal_fock",
 ]

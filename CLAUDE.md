@@ -41,22 +41,18 @@ python benchmark_codes_claude.py             # Code comparison (cat, binomial, G
 
 ## Library Structure (coherax/)
 
-The library is organized into 5 focused modules:
+The library is organized into 6 focused modules:
 
-- `operators.py` — dynamiqs wrappers, constants (GKP_N, sigma matrices, a_op, etc.), channels (pure loss, transpose recovery, Kraus maps), linear algebra helpers
+- `operators.py` — dynamiqs wrappers, constants (GKP_N, sigma matrices, a_op, etc.), channels (pure loss, thermal loss, transpose recovery, Kraus maps), linear algebra helpers
 - `states.py` — CoherentKet, CoherentDM, BosonicSubspace classes
 - `circuits.py` — CD/ECD/rotation unitaries, TraceoutLayer, g(), channel_from_b(), circuit timing
 - `fidelity.py` — analytic fidelity computations (single, batched, with loss recovery)
-- `gkp.py` — GKP code state generators (square/rectangular lattice)
+- `gkp.py` — GKP code state generators (square/rectangular lattice), stabilizer diagnostics, error rates
+- `info.py` — coherent information computations (pure loss, thermal loss)
 
 Supporting modules:
 - `transpose_channel_claude.py` — transpose recovery, SBS baseline, F_e computation
-- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization (lazy-imports coherent_tree_optimizer_claude)
-- `coherent_tree_optimizer_claude.py` — tree-structured optimization
-- `binary_tree_utils.py` — binary tree Kraus structure
-- `characteristic_jax_utils.py` — backward-compat shim (re-exports everything from new modules)
-
-Everything else is in `coherax/deprecated/`.
+- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization
 
 ## Data Files (testing_data/)
 
@@ -79,11 +75,7 @@ The notebook loads `.npz` result files from `testing_data/`:
 
 - All JAX code uses `jax.config.update("jax_enable_x64", True)` for double precision
 - The `_claude` suffix on filenames is a provenance marker (Claude-assisted authoring)
-- StrawberryFields is only used in `coherax/deprecated/utils.py` for GKP Fock-basis state generation
 
 ## TODO
 
-- [x] Aggressively lint all active files: remove dead imports, unused functions, commented-out code
-- [x] Lint `coherax/deprecated/` — deleted 8 redundant files, kept 28 with unique experimental code
-- [x] `coherent_tree_optimizer_claude.py` and `binary_tree_utils.py` moved to deprecated/ (only reachable via lazy import in __main__ block)
 - [ ] Connect ReadTheDocs to GitHub repo via readthedocs.org dashboard

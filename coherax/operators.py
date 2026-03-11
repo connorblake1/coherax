@@ -14,6 +14,8 @@ import dynamiqs as dq
 import jax
 import jax.numpy as jnp
 import jax.scipy.linalg as jla
+import numpy as np
+import scipy.linalg as sla
 from jaxtyping import Array
 
 # ---------------------------------------------------------------------------
@@ -378,6 +380,73 @@ def make_transpose_for_pureloss(
     return jnp.array(
         [P @ inv_loss_ops[i, :, :] @ loss_P_invsqrt for i in range(loss_ops.shape[0])]
     )
+
+
+def von_neumann_entropy(rho: Array) -> float:
+    r"""Von Neumann entropy :math:`S(\rho) = -\mathrm{Tr}(\rho \log_2 \rho)` in qubits.
+
+    Parameters
+    ----------
+    rho : Array, shape ``(N, N)``
+        Density matrix.
+
+    Returns
+    -------
+    float
+        Entropy in qubits.
+    """
+    evals = jnp.linalg.eigvalsh(rho)
+    evals = jnp.real(evals)
+    return float(-jnp.sum(jnp.where(evals > 1e-15, evals * jnp.log2(evals), 0.0)))
+
+
+def make_thermalloss_fock(
+    gamma: float, n_th: float, rank: int = 20, N: int = GKP_N
+) -> Array:
+    r"""Kraus operators for the thermal-loss channel.
+
+    Constructs the channel via a beam-splitter interaction with a thermal
+    environment and partial trace over environment modes.
+
+    Parameters
+    ----------
+    gamma : float
+        Loss probability in ``[0, 1)``.
+    n_th : float
+        Mean thermal photon number of the environment.
+    rank : int
+        Number of Kraus operators (environment truncation).
+    N : int
+        Hilbert space dimension.
+
+    Returns
+    -------
+    Array, shape ``(rank, N, N)``
+    """
+    if n_th < 1e-12:
+        return make_pureloss_fock(gamma, rank, N)
+    eta = 1.0 - gamma
+    a = np.array(dqdestroy(N))
+    N_env_trunc = min(rank, 15)
+    p_thermal = np.array(
+        [(n_th**k / (1 + n_th) ** (k + 1)) for k in range(N_env_trunc)]
+    )
+    p_thermal = p_thermal / p_thermal.sum()
+    a_sys = np.kron(a, np.eye(N_env_trunc))
+    a_env = np.kron(np.eye(N), np.array(dqdestroy(N_env_trunc)))
+    theta = np.arccos(np.sqrt(eta))
+    H_BS = theta * (a_sys.conj().T @ a_env - a_sys @ a_env.conj().T)
+    U_BS = sla.expm(H_BS)
+    kraus_ops = []
+    for j in range(N_env_trunc):
+        K_j = np.zeros((N, N), dtype=np.complex128)
+        for k in range(N_env_trunc):
+            block = U_BS[np.arange(N) * N_env_trunc + j][
+                :, np.arange(N) * N_env_trunc + k
+            ]
+            K_j += np.sqrt(p_thermal[k]) * block
+        kraus_ops.append(K_j)
+    return jnp.array(np.array(kraus_ops))
 
 
 # ---------------------------------------------------------------------------

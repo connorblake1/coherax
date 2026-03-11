@@ -811,42 +811,6 @@ if __name__ == "__main__":
         verbose=True,
     )
 
-    # Also run average-case optimization for comparison
-    print(f"\n{'='*60}")
-    print("Running Average-Case Optimization (for comparison)")
-    print(f"{'='*60}")
-
-    # Import from coherent_tree_optimizer_claude
-    try:
-        from coherax.deprecated.coherent_tree_optimizer_claude import optimize_cmaes_flat
-
-        params_avg, Fe_opt, avg_info = optimize_cmaes_flat(
-            logical_0, logical_1, gamma,
-            N_depth=N_depth,
-            popsize=60,
-            maxiter=800,
-            verbose=True,
-        )
-    except ImportError:
-        print("  (skipping average-case - module not found)")
-        params_avg = None
-
-    # Compare results
-    print(f"\n{'='*60}")
-    print("Comparison: Worst-Case vs Average-Case Optimization")
-    print(f"{'='*60}")
-
-    comparison = compare_worstcase_vs_average(
-        logical_0, logical_1, gamma,
-        N_depth=N_depth,
-        params_worstcase=params_wc,
-        params_avgcase=params_avg,
-        n_theta=24,
-        n_phi=48,
-        n_rounds=5,
-        verbose=True,
-    )
-
     # Fock cross-validation
     print(f"\n{'='*60}")
     print("Fock-Basis Cross-Validation")
@@ -866,7 +830,4 @@ if __name__ == "__main__":
     print(f"  gamma = {gamma}")
     print(f"  Identity baseline:       Fwc={Fwc_id:.6f}, Fe={Fe_id:.6f}")
     print(f"  Worst-case optimized:    Fwc={Fwc_opt:.6f}")
-    if params_avg is not None and 'worstcase_opt' in comparison and 'avgcase_opt' in comparison:
-        print(f"  Average-case optimized:  Fwc={comparison['avgcase_opt']['Fwc']:.6f}, "
-              f"Fe={comparison['avgcase_opt']['Fe']:.6f}")
-        print(f"\n  Worst-case improvement:  +{Fwc_opt - Fwc_id:.6f}")
+    print(f"\n  Worst-case improvement:  +{Fwc_opt - Fwc_id:.6f}")

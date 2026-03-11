@@ -64,10 +64,10 @@ coherax/
 │   ├── states.py                     # CoherentKet, CoherentDM, BosonicSubspace
 │   ├── circuits.py                   # CD+R circuits, TraceoutLayer, g()
 │   ├── fidelity.py                   # Analytic fidelity computations
-│   ├── gkp.py                        # GKP code state generators
+│   ├── gkp.py                        # GKP code state generators, diagnostics
+│   ├── info.py                       # Coherent information computations
 │   ├── transpose_channel_claude.py   # Transpose recovery
-│   ├── worstcase_optimizer_claude.py # CMA-ES optimization
-│   └── characteristic_jax_utils.py   # Backward-compat shim
+│   └── worstcase_optimizer_claude.py # CMA-ES optimization
 └── pyproject.toml
 ```
 
