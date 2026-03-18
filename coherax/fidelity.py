@@ -11,6 +11,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import jax.scipy.special as jsp
 from jaxtyping import Array
 
 from coherax.operators import aOmegab
@@ -178,6 +179,29 @@ def analytic_fidelity_transfer(
     return jax.lax.fori_loop(0, alpha.shape[0], body_i, 0.0)
 
 
+@jax.jit
+def analytic_fidelity_fock_state(alphas: Array, betas: Array, m: int) -> float:
+    """
+    Compute F_m = \sum_j |\sum_i \alpha_{ji} <m|\beta_{ji}>|^2 for pure Fock state |m>.
+
+    Args:
+        alphas: (2, N_l) complex amplitudes from g()
+        betas: (2, N_l) complex displacement positions from g()
+        m: target Fock state number
+
+    Returns:
+        Fidelity F in [0,1]
+    """
+    envelope = jnp.exp(-0.5 * jnp.abs(betas) ** 2)  # (2, N_l)
+    monomial = betas**m  # (2, N_l), complex power
+    norm = 1.0 / jnp.sqrt(jnp.exp(jsp.gammaln(m + 1.0)))
+    overlaps = envelope * monomial * norm  # (2, N_l)
+
+    # Σ_i α_{j,i} ⟨m|β_{j,i}⟩ for each j
+    inner = jnp.sum(alphas * overlaps, axis=1)  # (2,)
+    return jnp.sum(jnp.abs(inner) ** 2).real
+
+
 # ---------------------------------------------------------------------------
 # Convenience wrappers
 # ---------------------------------------------------------------------------
@@ -186,7 +210,7 @@ def analytic_fidelity_transfer(
 @partial(jax.jit, static_argnums=2)
 def analytic_fidelity_wrapper(
     coherent: "CoherentKet",  # noqa: F821
-    circuit_parameters: Array,
+    circuit_params: Array,
     N_l: int,
 ) -> Array:
     """Fidelity between a :class:`~coherax.states.CoherentKet` and a circuit output.
@@ -195,7 +219,7 @@ def analytic_fidelity_wrapper(
     ----------
     coherent : CoherentKet
         Target state.
-    circuit_parameters : Array, shape ``(n_layers, 4)``
+    circuit_params : Array, shape ``(n_layers, 4)``
     N_l : int
         Coherent-term count.
 
@@ -208,10 +232,67 @@ def analytic_fidelity_wrapper(
 
     alpha_coherent = jnp.expand_dims(coherent.cs, 0)
     beta_coherent = jnp.expand_dims(coherent.ds, 0)
-    alpha_circuit, beta_circuit = g(circuit_parameters, N_l)
+    alpha_circuit, beta_circuit = g(circuit_params, N_l)
     return analytic_fidelity(
         all_coeffs_a=alpha_coherent,
         all_coeffs_b=alpha_circuit,
         all_peaks_a=beta_coherent,
         all_peaks_b=beta_circuit,
     )
+
+
+@partial(jax.jit, static_argnums=(3, 4))
+def analytic_fidelity_transfer_wrapper(
+    initial: "CoherentKet",  # noqa: F821
+    final: "CoherentKet",  # noqa: F821
+    circuit_params: Array,
+    N_l: int,
+    T: int,
+):
+    """Fidelity between a :class:`~coherax.states.CoherentKet` and a circuit output starting from a different :class:`~coherax.states.CoherentKet`.
+
+    Parameters
+    ----------
+    coherent : CoherentKet
+        Target state.
+    circuit_params : Array, shape ``(n_layers, 4)``
+    N_l : int
+        Coherent-term count.
+
+    Returns
+    -------
+    Array
+        Scalar fidelity.
+    """
+    from coherax.circuits import super_g
+
+    alpha, beta = super_g(circuit_params, N_l=N_l, T=T)
+    return analytic_fidelity_transfer(
+        alpha=alpha, beta=beta, c=initial.cs, d=initial.ds, cp=final.cs, dp=final.ds
+    )
+
+
+@partial(jax.jit, static_argnums=2)
+def analytic_fidelity_fock_wrapper(fock_m: int, circuit_params: Array, N_l: int):
+    """
+    Wrapper computes the fidelity between a circuit and a pure Fock state |m>.
+    Parameters
+    ----------
+    fock_m : int
+        Target Fock state.
+    circuit_params : Array, shape ``(n_layers, 4)``
+    N_l : int
+        Coherent-term count.
+
+    Returns
+    -------
+    Array
+        Scalar fidelity.
+    """
+    from coherax.circuits import g
+
+    alpha_circuit, beta_circuit = g(circuit_params, N_l)
+    return analytic_fidelity_fock_state(alpha_circuit, beta_circuit, fock_m)
+
+
+# TODO general focks states

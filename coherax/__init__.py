@@ -84,23 +84,14 @@ from coherax.fidelity import (
     analytic_fidelity_i,
     analytic_fidelity_transfer,
     analytic_fidelity_transfer_i,
+    analytic_fidelity_fock_state,
     analytic_fidelity_wrapper,
-    analytic_pureloss_recovery_fidelity_thetaphi,
-    analytic_pureloss_recovery_fidelity_thetaphi_iab,
+    analytic_fidelity_transfer_wrapper,
+    analytic_fidelity_fock_wrapper,
 )
 
 from coherax.gkp import (
-    fock_wavefunctions,
     gkp_coherent_dm,
-    gkp_x_error_rate,
-    stabilizer_expectations,
-    x_marginal,
-)
-
-from staging.info import (
-    coherent_info_from_coherent_kets,
-    coherent_info_from_kets,
-    coherent_info_thermal_fock,
 )
 
 __all__ = [
@@ -177,17 +168,10 @@ __all__ = [
     "analytic_fidelity_i",
     "analytic_fidelity_transfer",
     "analytic_fidelity_transfer_i",
+    "analytic_fidelity_fock_state",
     "analytic_fidelity_wrapper",
-    "analytic_pureloss_recovery_fidelity_thetaphi",
-    "analytic_pureloss_recovery_fidelity_thetaphi_iab",
+    "analytic_fidelity_transfer_wrapper",
+    "analytic_fidelity_fock_wrapper",
     # gkp
     "gkp_coherent_dm",
-    "stabilizer_expectations",
-    "fock_wavefunctions",
-    "x_marginal",
-    "gkp_x_error_rate",
-    # info
-    "coherent_info_from_kets",
-    "coherent_info_from_coherent_kets",
-    "coherent_info_thermal_fock",
 ]
