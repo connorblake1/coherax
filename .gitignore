@@ -13,3 +13,4 @@ build/
 figs/*.pdf
 figs/*.png
 docs/_build/
+staging/

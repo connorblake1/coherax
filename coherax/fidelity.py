@@ -90,6 +90,7 @@ def analytic_fidelity(
             return accj + analytic_fidelity_i(
                 all_coeffs_a[i], all_coeffs_b[j], all_peaks_a[i], all_peaks_b[j]
             )
+
         return jax.lax.fori_loop(0, M, body_j, acci)
 
     return jax.lax.fori_loop(0, N, body_i, 0.0)
@@ -178,125 +179,6 @@ def analytic_fidelity_transfer(
 
 
 # ---------------------------------------------------------------------------
-# Pure-loss recovery fidelity
-# ---------------------------------------------------------------------------
-
-
-@jax.jit
-def analytic_pureloss_recovery_fidelity_thetaphi_iab(
-    da: Array,
-    db: Array,
-    alpha_i: Array,
-    beta_i: Array,
-    cap: Array,
-    dap: Array,
-    gamma: float,
-) -> Array:
-    r"""Pure-loss recovery fidelity kernel for a specific ``(a, b)`` index pair.
-
-    This is the innermost computation of the analytic fidelity under
-    photon loss at rate ``gamma``.
-
-    Parameters
-    ----------
-    da, db : Array
-        Displacement amplitudes of code-word components.
-    alpha_i, beta_i : Array, shape ``(N_l,)``
-        Recovery channel coefficients and displacements.
-    cap, dap : Array, shape ``(A,)``
-        Input state coefficients and displacements.
-    gamma : float
-        Loss probability.
-
-    Returns
-    -------
-    Array
-        Complex amplitude contribution.
-    """
-    A = cap.shape[0]
-    N = alpha_i.shape[0]
-    cap = cap.reshape(A, 1)
-    dap = dap.reshape(A, 1)
-    alpha_i = alpha_i.reshape(1, N)
-    beta_i = beta_i.reshape(1, N)
-
-    prefactor = jnp.conj(cap) * alpha_i
-    env_term1 = (-1.0 + jnp.sqrt(1 - gamma)) / 2.0 * jnp.abs(beta_i - dap) ** 2
-    env_term2 = (
-        -jnp.sqrt(1 - gamma) / 2.0
-        * (jnp.abs(beta_i - dap + db) ** 2 - jnp.abs(db) ** 2)
-    )
-    env_term3 = -0.25 * (
-        gamma * jnp.abs(da - db) ** 2
-        + (1.0 - gamma) * (jnp.abs(da) ** 2 + jnp.abs(db) ** 2)
-    )
-    envelope = env_term1 + env_term2 + env_term3
-    phase = 1.0j * (
-        aOmegab(dap, beta_i)
-        + jnp.sqrt(1 - gamma) * aOmegab(db, beta_i - dap)
-        + gamma / 2 * aOmegab(da, db)
-    )
-    return jnp.sum(prefactor * jnp.exp(envelope + phase))
-
-
-@jax.jit
-def analytic_pureloss_recovery_fidelity_thetaphi(
-    alpha: Array,
-    beta: Array,
-    c: Array,
-    d: Array,
-    gamma: float,
-) -> Array:
-    r"""Fidelity of a CD+R recovery circuit under pure loss.
-
-    Parameters
-    ----------
-    alpha, beta : Array, shape ``(K, N_l)``
-        Recovery channel representation.
-    c, d : Array
-        Logical state coefficients and displacements.
-    gamma : float
-        Loss probability.
-
-    Returns
-    -------
-    Array
-        Scalar fidelity.
-    """
-    partial_i_fidelity_caller = jax.jit(
-        partial(
-            jax.vmap(
-                jax.vmap(
-                    lambda da, db, alpha_i, beta_i: (
-                        analytic_pureloss_recovery_fidelity_thetaphi_iab(
-                            da, db, alpha_i, beta_i, c, d, gamma
-                        )
-                        * jnp.conj(
-                            analytic_pureloss_recovery_fidelity_thetaphi_iab(
-                                db, da, alpha_i, beta_i, c, d, gamma
-                            )
-                        )
-                    ),
-                    in_axes=(None, 0, None, None),
-                ),
-                in_axes=(0, None, None, None),
-            ),
-            d,
-            d,
-        )
-    )
-
-    def body_i(i: int, acc: Array) -> Array:
-        return acc + jnp.abs(
-            jnp.einsum(
-                "ij,i,j->", partial_i_fidelity_caller(alpha[i], beta[i]), jnp.conj(c), c
-            )
-        )
-
-    return jax.lax.fori_loop(0, alpha.shape[0], body_i, 0.0)
-
-
-# ---------------------------------------------------------------------------
 # Convenience wrappers
 # ---------------------------------------------------------------------------
 
@@ -333,5 +215,3 @@ def analytic_fidelity_wrapper(
         all_peaks_a=beta_coherent,
         all_peaks_b=beta_circuit,
     )
-
-
