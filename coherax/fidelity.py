@@ -181,23 +181,30 @@ def analytic_fidelity_transfer(
 
 @jax.jit
 def analytic_fidelity_fock_state(alphas: Array, betas: Array, m: int) -> float:
-    """
-    Compute F_m = \sum_j |\sum_i \alpha_{ji} <m|\beta_{ji}>|^2 for pure Fock state |m>.
+    r"""Fidelity with a pure Fock state :math:`|m\rangle`.
 
-    Args:
-        alphas: (2, N_l) complex amplitudes from g()
-        betas: (2, N_l) complex displacement positions from g()
-        m: target Fock state number
+    Computes :math:`F_m = \sum_j |\sum_i \alpha_{ji} \langle m|\beta_{ji}\rangle|^2`.
 
-    Returns:
-        Fidelity F in [0,1]
+    Parameters
+    ----------
+    alphas : Array, shape ``(2, N_l)``
+        Complex amplitudes from :func:`~coherax.circuits.g`.
+    betas : Array, shape ``(2, N_l)``
+        Complex displacement positions from :func:`~coherax.circuits.g`.
+    m : int
+        Target Fock state number.
+
+    Returns
+    -------
+    float
+        Fidelity in ``[0, 1]``.
     """
     envelope = jnp.exp(-0.5 * jnp.abs(betas) ** 2)  # (2, N_l)
     monomial = betas**m  # (2, N_l), complex power
     norm = 1.0 / jnp.sqrt(jnp.exp(jsp.gammaln(m + 1.0)))
     overlaps = envelope * monomial * norm  # (2, N_l)
 
-    # Σ_i α_{j,i} ⟨m|β_{j,i}⟩ for each j
+    # \Sigma_i \alpha_{j,i} <m|\beta_{j,i}> for each j
     inner = jnp.sum(alphas * overlaps, axis=1)  # (2,)
     return jnp.sum(jnp.abs(inner) ** 2).real
 
@@ -278,8 +285,8 @@ def analytic_fidelity_transfer_wrapper(
 
 @partial(jax.jit, static_argnums=2)
 def analytic_fidelity_fock_wrapper(fock_m: int, circuit_params: Array, N_l: int):
-    """
-    Wrapper computes the fidelity between a circuit and a pure Fock state |m>.
+    r"""Fidelity between a circuit output and a pure Fock state :math:`|m\rangle`.
+
     Parameters
     ----------
     fock_m : int

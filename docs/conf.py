@@ -18,7 +18,6 @@ templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
 
 # autodoc settings
 autodoc_member_order = "bysource"
@@ -33,14 +32,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
 }
 
-# Avoid importing heavy C extensions during doc build
-autodoc_mock_imports = [
-    "jax",
-    "jaxlib",
-    "dynamiqs",
-    "equinox",
-    "optax",
-    "jaxtyping",
-    "strawberryfields",
-    "cma",
-]
+always_use_bars_union = False
+typehints_fully_qualified = False
+always_document_param_types = False
+suppress_warnings = ["sphinx_autodoc_typehints.forward_reference"]

@@ -1,14 +1,14 @@
-"""coherax — Coherent-basis optimization for bosonic quantum codes.
+"""coherax -- Coherent-basis optimization for bosonic quantum codes.
 
 Public API is organized into submodules:
 
-- :mod:`coherax.operators` — Quantum operators, dynamiqs wrappers, constants
-- :mod:`coherax.states` — CoherentKet, CoherentDM, BosonicSubspace
-- :mod:`coherax.circuits` — CD+R circuit construction, TraceoutLayer, ``g()``
-- :mod:`coherax.fidelity` — Analytic fidelity computations
-- :mod:`coherax.gkp` — GKP code state generators
-- :mod:`coherax.info` — Coherent information computations
-- :mod:`coherax.optimizers` — ECD circuit optimization
+- :mod:`coherax.operators` -- Quantum operators, dynamiqs wrappers, constants
+- :mod:`coherax.states` -- CoherentKet, CoherentDM, BosonicSubspace
+- :mod:`coherax.circuits` -- CD+R circuit construction, TraceoutLayer, ``g()``
+- :mod:`coherax.fidelity` -- Analytic fidelity computations
+- :mod:`coherax.gkp` -- GKP code state generators
+- :mod:`coherax.info` -- Coherent information computations
+- :mod:`coherax.optimizers` -- ECD circuit optimization
 """
 
 from coherax.operators import (

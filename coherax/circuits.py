@@ -157,7 +157,7 @@ def circuit_layer(layer: Array, N: int = GKP_N) -> Array:
     Returns
     -------
     Array, shape ``(2N, 2N)``
-        Unitary on the joint cavity ⊗ qubit space.
+        Unitary on the joint cavity x qubit space.
     """
     d = layer[0]
     phi = jnp.real(layer[1])
@@ -190,7 +190,7 @@ def compose_ECD_layers(params: Array) -> Array:
 
 @partial(jax.jit, static_argnums=1)
 def traceout_unitary(U: Array, N: int = GKP_N) -> Array:
-    """Trace out the qubit from a cavity⊗qubit unitary to get Kraus operators.
+    """Trace out the qubit from a cavity x qubit unitary to get Kraus operators.
 
     Parameters
     ----------
@@ -230,7 +230,7 @@ def circuit_params_to_2channel(params: Array) -> Array:
 
 
 # ---------------------------------------------------------------------------
-# TraceoutLayer — coherent-basis channel tracking
+# TraceoutLayer -- coherent-basis channel tracking
 # ---------------------------------------------------------------------------
 
 

@@ -26,7 +26,7 @@ GKP_N: int = 100
 """Fock-space truncation dimension for the bosonic mode."""
 
 # ---------------------------------------------------------------------------
-# dynamiqs → JAX wrappers
+# dynamiqs -> JAX wrappers
 # ---------------------------------------------------------------------------
 
 
@@ -176,10 +176,10 @@ root2: Array = jnp.sqrt(2.0)
 """Square root of 2."""
 
 IN: Array = dqeye(GKP_N)
-"""Identity on the bosonic mode (GKP_N × GKP_N)."""
+"""Identity on the bosonic mode (GKP_N x GKP_N)."""
 
 I2: Array = dqeye(2)
-"""Identity on the qubit (2 × 2)."""
+"""Identity on the qubit (2 x 2)."""
 
 sigma_x: Array = dq.sigmax().to_jax()
 """Pauli X."""
@@ -285,7 +285,7 @@ def apply_kraus_map_n(ops: Array, rho: Array, n: int) -> Array:
 def compose_channel_kraus(ch1: Array, ch2: Array) -> Array:
     """Compose two quantum channels in Kraus representation.
 
-    Returns Kraus operators for the channel ``ch1 ∘ ch2`` (ch2 applied first).
+    Returns Kraus operators for the channel ``ch1 . ch2`` (ch2 applied first).
 
     Parameters
     ----------
@@ -462,7 +462,7 @@ def invsqrtm(A: Array) -> Array:
 
 
 def sparse_eigh(O: Array, eps: float = 1e-6) -> tuple[Array, Array]:
-    """Eigendecomposition keeping only eigenvalues ≥ *eps*.
+    """Eigendecomposition keeping only eigenvalues >= *eps*.
 
     Parameters
     ----------
@@ -484,7 +484,7 @@ def sparse_eigh(O: Array, eps: float = 1e-6) -> tuple[Array, Array]:
 def sparse_tensor_eigh(T: Array, eps: float = 1e-6) -> tuple[Array, Array]:
     """Eigendecomposition of a rank-4 block-Hermitian tensor.
 
-    Reshapes ``T`` of shape ``(A, A, A, A)`` into ``(A², A²)`` before
+    Reshapes ``T`` of shape ``(A, A, A, A)`` into ``(A^2, A^2)`` before
     calling :func:`sparse_eigh`.
 
     Returns
