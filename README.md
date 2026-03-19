@@ -37,7 +37,6 @@ See `demo.ipynb` for worked examples including state preparation, Fock state opt
 coherax/
 ├── demo.ipynb                       # Main demo notebook
 ├── testing_data/                    # Saved .npz parameters
-├── figs/                            # Generated figures
 ├── docs/                            # Sphinx documentation
 ├── coherax/                         # Core library
 │   ├── operators.py                 # Quantum operators, constants, channels
