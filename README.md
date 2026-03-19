@@ -9,7 +9,7 @@ Built on [JAX](https://github.com/jax-ml/jax) and [dynamiqs](https://github.com/
 - **Analytic closed-form fidelity** via coherent-basis decomposition of CD+R circuits
 - **GKP, cat, and Fock state preparation** with gradient-based ECD optimization
 - **Coherent information benchmarks** comparing GKP, cat, binomial, and floating-basis codes
-- **Transpose channel recovery** for bosonic codes under photon loss
+- More to come!
 
 ## Installation
 
