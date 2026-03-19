@@ -34,48 +34,40 @@ which was removed in scipy 1.14.
 All commands should be run from the repo root with `conda activate coherax`.
 
 ```bash
-jupyter notebook aggregated_results.ipynb    # select "Python (coherax)" kernel
-python fock_fidelity_claude.py               # Fock state preparation optimization
-python benchmark_codes_claude.py             # Code comparison (cat, binomial, GKP)
+jupyter notebook demo.ipynb    # select "Python (coherax)" kernel
 ```
 
 ## Library Structure (coherax/)
 
-The library is organized into 6 focused modules:
+The library is organized into 7 modules:
 
 - `operators.py` — dynamiqs wrappers, constants (GKP_N, sigma matrices, a_op, etc.), channels (pure loss, thermal loss, transpose recovery, Kraus maps), linear algebra helpers
 - `states.py` — CoherentKet, CoherentDM, BosonicSubspace classes
 - `circuits.py` — CD/ECD/rotation unitaries, TraceoutLayer, g(), channel_from_b(), circuit timing
-- `fidelity.py` — analytic fidelity computations (single, batched, with loss recovery)
-- `gkp.py` — GKP code state generators (square/rectangular lattice), stabilizer diagnostics, error rates
+- `fidelity.py` — analytic fidelity computations (single, batched, Fock state targets)
+- `gkp.py` — GKP code state generators (square/rectangular lattice)
 - `info.py` — coherent information computations (pure loss, thermal loss)
-
-Supporting modules:
-- `transpose_channel_claude.py` — transpose recovery, SBS baseline, F_e computation
-- `worstcase_optimizer_claude.py` — CMA-ES worst-case optimization
+- `optimizers.py` — gradient-based ECD circuit optimization (state prep and state transfer)
 
 ## Data Files (testing_data/)
 
-The notebook loads `.npz` result files from `testing_data/`:
+The demo notebook loads `.npz` result files from `testing_data/`:
 - `exp_C1_x3_100restart.npz`, `exp_C2_x4_100restart.npz` — 1D marginal prep params
+- `GKP_D034_x3_to_x3y3_prep.npz` — state transfer prep params
 - `fock_preparation.npz` — Fock state preparation results
-- `cmaes_recovery_params.npz`, `extended_depth_sweep.npz` — CMA-ES recovery params
-- `entanglement_fidelity_benchmark.npz` — benchmark comparison data
 - `results_vacuum.npz`, `results_Ic_improvements.npz` — floating-basis results
-- `floating_prep_results.npz`, `Ic_comparison_results.npz` — I_c comparison data
-- `fourier_saved.npy` — precomputed Fourier coefficients
+- `Ic_comparison_results.npz` — I_c comparison data
 
 ## Key Constants
 
 - `GKP_N = 100` — Fock space truncation dimension
-- `GKP_L = 2*sqrt(pi)` — GKP lattice spacing
-- `Delta` — GKP envelope parameter (typically 0.2–0.3)
+- `Delta` — GKP envelope parameter (typically 0.2–0.4)
 
 ## Notes
 
 - All JAX code uses `jax.config.update("jax_enable_x64", True)` for double precision
-- The `_claude` suffix on filenames is a provenance marker (Claude-assisted authoring)
+- The coherent-basis pipeline (`TraceoutLayer`, `g()`, `channel_from_b()`) uses `complex64` internally for performance, while Fock-basis computations use `complex128`
 
-## TODO
+### Known precision notes
 
-- [ ] Connect ReadTheDocs to GitHub repo via readthedocs.org dashboard
+- The coherent-basis pipeline (`TraceoutLayer`, `channel_from_b`, `traceout_unitary`, `compose_channel_kraus`) operates in `complex64` even when x64 is enabled. This is intentional for performance but may limit precision for very deep circuits (>15 layers) or when individual coherent terms have large displacement magnitudes.

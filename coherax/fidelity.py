@@ -249,15 +249,19 @@ def analytic_fidelity_transfer_wrapper(
     N_l: int,
     T: int,
 ):
-    """Fidelity between a :class:`~coherax.states.CoherentKet` and a circuit output starting from a different :class:`~coherax.states.CoherentKet`.
+    """State-transfer fidelity from *initial* to *final* via a circuit.
 
     Parameters
     ----------
-    coherent : CoherentKet
+    initial : CoherentKet
+        Starting state.
+    final : CoherentKet
         Target state.
-    circuit_params : Array, shape ``(n_layers, 4)``
+    circuit_params : Array, shape ``(T, n_layers, 4)``
     N_l : int
         Coherent-term count.
+    T : int
+        Number of independent circuit branches.
 
     Returns
     -------

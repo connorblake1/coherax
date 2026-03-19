@@ -19,7 +19,7 @@ Or from source:
 Basic Usage
 -----------
 
-Construct a GKP code word and compute its characteristic function:
+Construct a GKP code word and evaluate its characteristic function:
 
 .. code-block:: python
 
@@ -29,7 +29,7 @@ Construct a GKP code word and compute its characteristic function:
    # Logical |0> with Delta=0.3, square lattice, 3-term truncation
    log0 = gkp_coherent_dm(mu=0, N_trunc=3, Delta=0.3, lattice="square")
 
-   # Evaluate the characteristic function at a point
+   # Evaluate the characteristic function chi(u) = Tr(rho D(-u)) at a point
    chi_val = log0(0.5 + 0.3j)
 
 Compute analytic fidelity between a circuit output and a target state:

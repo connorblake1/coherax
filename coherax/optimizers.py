@@ -54,11 +54,8 @@ def optimize_ECD_state_prep(
         a_init = jnp.zeros((N_depth, 4), jnp.complex64)
         if initial is not None:
             a_init = initial
-        a_init = (
-            a_init.at[:, 1:3].add(
-                2 * random_angle * jr.uniform(key=k2, shape=(N_depth, 2))
-            )
-            - random_angle
+        a_init = a_init.at[:, 1:3].add(
+            2 * random_angle * jr.uniform(key=k2, shape=(N_depth, 2))
         )
         a_init = a_init.at[:, 0].add(
             random_dist * jr.normal(key=k1, shape=(N_depth,))

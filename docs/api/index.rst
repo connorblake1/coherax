@@ -9,3 +9,5 @@ API Reference
    circuits
    fidelity
    gkp
+   info
+   optimizers

@@ -7,6 +7,8 @@ Public API is organized into submodules:
 - :mod:`coherax.circuits` — CD+R circuit construction, TraceoutLayer, ``g()``
 - :mod:`coherax.fidelity` — Analytic fidelity computations
 - :mod:`coherax.gkp` — GKP code state generators
+- :mod:`coherax.info` — Coherent information computations
+- :mod:`coherax.optimizers` — ECD circuit optimization
 """
 
 from coherax.operators import (
