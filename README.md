@@ -56,7 +56,17 @@ Full API docs: [coherax.readthedocs.io](https://coherax.readthedocs.io)
 
 ## Citation
 
-C. Blake, G. Zheng, G. Lee, and L. Jiang, "Coherent-Basis Optimization for Bosonic Quantum Codes," 2026.
+If you use coherax in your research, please cite:
+
+```bibtex
+@software{coherax2026,
+  author       = {Blake, Connor and Zheng, Guo and Lee, Gideon and Jiang, Liang},
+  title        = {coherax: Coherent-basis optimization for bosonic quantum codes},
+  year         = {2026},
+  url          = {https://github.com/connorblake1/coherax},
+  version      = {0.1.0},
+}
+```
 
 ## License
 
