@@ -29,7 +29,9 @@ pip install -e ".[dev]"
 
 ## Usage
 
-See `demo.ipynb` for worked examples including state preparation, Fock state optimization, and coherent information benchmarks.
+See `demo.ipynb` for worked examples including state preparation, Fock state optimization, and coherent information benchmarks. For example, here is a 23 ECD preparation of a high fidelity (.9998) finite GKP state:
+
+![GKP state preparation](testing_data/gkp_prep.gif)
 
 ## Project Structure
 
