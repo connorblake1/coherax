@@ -94,6 +94,17 @@ from coherax.gkp import (
     gkp_coherent_dm,
 )
 
+from coherax.info import (
+    pureloss_coherent_info_from_coherent_kets,
+    pureloss_coherent_info_from_kets,
+    thermalloss_coherent_info_from_kets,
+)
+
+from coherax.optimizers import (
+    optimize_ECD_state_prep,
+    optimize_ECD_state_transfer,
+)
+
 __all__ = [
     # operators
     "GKP_N",
@@ -172,6 +183,13 @@ __all__ = [
     "analytic_fidelity_wrapper",
     "analytic_fidelity_transfer_wrapper",
     "analytic_fidelity_fock_wrapper",
+    # info
+    "pureloss_coherent_info_from_coherent_kets",
+    "pureloss_coherent_info_from_kets",
+    "thermalloss_coherent_info_from_kets",
     # gkp
     "gkp_coherent_dm",
+    # optimizers
+    "optimize_ECD_state_prep",
+    "optimize_ECD_state_transfer",
 ]
