@@ -14,7 +14,7 @@ import jax.numpy as jnp
 import jax.scipy.special as jsp
 from jaxtyping import Array
 
-from coherax.operators import aOmegab
+from coherax.linalg_utils import aOmegab
 
 
 # ---------------------------------------------------------------------------
@@ -304,6 +304,116 @@ def analytic_fidelity_fock_wrapper(fock_m: int, circuit_params: Array, N_l: int)
 
     alpha_circuit, beta_circuit = g(circuit_params, N_l)
     return analytic_fidelity_fock_state(alpha_circuit, beta_circuit, fock_m)
+
+
+# ---------------------------------------------------------------------------
+# Simplified fidelity functions using inner-product formulation
+# ---------------------------------------------------------------------------
+
+
+def state_fidelity(psi: "Ket", phi: "Ket") -> Array:
+    r"""Fidelity :math:`|\langle\psi|\phi\rangle|^2` between two kets.
+
+    Works for any combination of :class:`~coherax.states.CoherentKet`,
+    :class:`~coherax.states.FockKet`, etc.
+
+    .. math::
+
+        F = |\langle\psi|\phi\rangle|^2
+
+    Parameters
+    ----------
+    psi : Ket
+        First state.
+    phi : Ket
+        Second state.
+
+    Returns
+    -------
+    Array
+        Scalar fidelity in :math:`[0, 1]`.
+    """
+    return jnp.abs(psi.inner(phi)) ** 2
+
+
+def circuit_state_fidelity(
+    target: "CoherentKet",
+    circuit_params: Array,
+    N_l: int,
+) -> Array:
+    r"""Fidelity between a target state and a circuit output.
+
+    Constructs the circuit unitary from *circuit_params*, applies it to
+    the vacuum :math:`|0\rangle|0\rangle`, traces out the qubit by
+    projecting onto :math:`|0\rangle`, and computes the overlap with
+    *target*.
+
+    .. math::
+
+        F = \bigl|\langle\mathrm{target}|\,
+            \langle 0|\, U\,|0\rangle|0\rangle\bigr|^2
+
+    Parameters
+    ----------
+    target : CoherentKet
+        Target bosonic state.
+    circuit_params : Array, shape ``(n_layers, 4)``
+        Circuit layer parameters.
+    N_l : int
+        Coherent-term count.
+
+    Returns
+    -------
+    Array
+        Scalar fidelity.
+    """
+    from coherax.circuits import CircuitUnitary
+    from coherax.states import CoherentKet, JointKet, QubitKet
+
+    U = CircuitUnitary.from_params(circuit_params, N_l)
+    vacuum = CoherentKet(cs=jnp.array([1.0]), ds=jnp.array([0.0 + 0j]))
+    qubit0 = QubitKet(cs=jnp.array([1.0, 0.0]))
+    output = U.apply(vacuum, qubit0)
+    # Project onto qubit |0> to get the bosonic output
+    bosonic_output = output.inner(qubit0)
+    return jnp.abs(target.inner(bosonic_output)) ** 2
+
+
+def circuit_fock_fidelity(
+    m: int,
+    circuit_params: Array,
+    N_l: int,
+) -> Array:
+    r"""Fidelity between a circuit output and Fock state :math:`|m\rangle`.
+
+    .. math::
+
+        F = \bigl|\langle m|\,
+            \langle 0|\, U\,|0\rangle|0\rangle\bigr|^2
+
+    Parameters
+    ----------
+    m : int
+        Target Fock state number.
+    circuit_params : Array, shape ``(n_layers, 4)``
+    N_l : int
+        Coherent-term count.
+
+    Returns
+    -------
+    Array
+        Scalar fidelity.
+    """
+    from coherax.circuits import CircuitUnitary
+    from coherax.states import CoherentKet, FockKet, QubitKet
+
+    U = CircuitUnitary.from_params(circuit_params, N_l)
+    vacuum = CoherentKet(cs=jnp.array([1.0]), ds=jnp.array([0.0 + 0j]))
+    qubit0 = QubitKet(cs=jnp.array([1.0, 0.0]))
+    output = U.apply(vacuum, qubit0)
+    bosonic_output = output.inner(qubit0)
+    fock_target = FockKet(cs=jnp.array([1.0]), ns=jnp.array([m]))
+    return jnp.abs(fock_target.inner(bosonic_output)) ** 2
 
 
 # TODO general focks states

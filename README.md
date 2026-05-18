@@ -11,6 +11,8 @@ Built on [JAX](https://github.com/jax-ml/jax) and [dynamiqs](https://github.com/
 - **Coherent information benchmarks** comparing GKP, cat, binomial, and floating-basis codes
 - More to come!
 
+> **Warning:** This library is under active development. The API is unstable and may change without notice between releases.
+
 ## Installation
 
 ```bash
@@ -41,14 +43,27 @@ coherax/
 ├── testing_data/                    # Saved .npz parameters
 ├── docs/                            # Sphinx documentation
 ├── coherax/                         # Core library
-│   ├── operators.py                 # Quantum operators, constants, channels
-│   ├── states.py                    # CoherentKet, CoherentDM, BosonicSubspace
+│   ├── linalg_utils.py              # GKP_N, coherent-state kernels, sparse eigh
+│   ├── _fock.py                     # Dynamiqs glue, Fock-basis constants, Kraus channels (transitional)
+│   ├── states.py                    # Ket/DM hierarchy, typed operators, CPTP
 │   ├── circuits.py                  # CD+R circuits, TraceoutLayer, g()
 │   ├── fidelity.py                  # Analytic fidelity computations
 │   ├── gkp.py                       # GKP code state generators
-│   ├── info.py                      # Coherent information computations
 │   └── optimizers.py                # ECD circuit optimization
 └── pyproject.toml
+```
+
+## Testing
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+Or run a specific test file:
+
+```bash
+pytest tests/test_states.py -v
 ```
 
 ## Documentation

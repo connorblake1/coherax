@@ -41,12 +41,12 @@ jupyter notebook demo.ipynb    # select "Python (coherax)" kernel
 
 The library is organized into 7 modules:
 
-- `operators.py` — dynamiqs wrappers, constants (GKP_N, sigma matrices, a_op, etc.), channels (pure loss, thermal loss, transpose recovery, Kraus maps), linear algebra helpers
-- `states.py` — CoherentKet, CoherentDM, BosonicSubspace classes
+- `linalg_utils.py` — pure-JAX primitives: GKP_N, coherent-state kernels (aOmegab, coherent_overlap, e_n1iaOmegab), dag, sparse eigh, matrix inverse-sqrt
+- `_fock.py` — dynamiqs wrappers, pre-built Fock-basis constants (IN, sigma_x/y/z, a_op, ...), and Kraus-channel utilities (apply_kraus_map, make_pureloss_fock, make_thermalloss_fock, von_neumann_entropy). Transitional — the dynamiqs glue will be removed once benchmarking against `dq` is no longer needed.
+- `states.py` — abstract Ket/DM base classes, CoherentKet, CoherentDM, FockKet, FockDM, LogicalKet, JointKet, BosonicSubspace, typed basis-defined operators (CoherentCoherentOp / FockFockOp / CoherentFockOp / FockCoherentOp), analytic operators (Displacer, Rotator, CPTP)
 - `circuits.py` — CD/ECD/rotation unitaries, TraceoutLayer, g(), channel_from_b(), circuit timing
 - `fidelity.py` — analytic fidelity computations (single, batched, Fock state targets)
 - `gkp.py` — GKP code state generators (square/rectangular lattice)
-- `info.py` — coherent information computations (pure loss, thermal loss)
 - `optimizers.py` — gradient-based ECD circuit optimization (state prep and state transfer)
 
 ## Data Files (testing_data/)
@@ -67,6 +67,12 @@ The demo notebook loads `.npz` result files from `testing_data/`:
 
 - All JAX code uses `jax.config.update("jax_enable_x64", True)` for double precision
 - The coherent-basis pipeline (`TraceoutLayer`, `g()`, `channel_from_b()`) uses `complex64` internally for performance, while Fock-basis computations use `complex128`
+
+## Code Standards
+
+- **Typing**: All functions and methods must have complete type annotations (parameters and return types). Use `jaxtyping.Array` for JAX arrays, `| None` union syntax (not `Optional`), and `from __future__ import annotations` at the top of every module.
+- **Docstrings**: Every public class, method, and function must have a NumPy-style docstring compatible with Sphinx/ReadTheDocs (`sphinx-autodoc-typehints`). Include `Parameters`, `Returns`, and (where helpful) `Examples` sections. Any function or method whose implementation involves a non-trivial mathematical derivation (inner products, fidelities, channel maps, etc.) must include the full formula in a Sphinx `.. math::` block using LaTeX so it renders on ReadTheDocs.
+- **Testing**: Every new feature must have full pytest coverage in `tests/`. Run `pytest` from the repo root. New test files should import `conftest.py` (which enables x64 mode). Tests should cover construction, normalization, edge cases, and cross-validate analytic results against Fock-truncated numerics where applicable.
 
 ### Known precision notes
 

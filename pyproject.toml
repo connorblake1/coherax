@@ -55,6 +55,10 @@ dev = [
 Repository = "https://github.com/connorblake1/coherax"
 Documentation = "https://coherax.readthedocs.io"
 
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
 [tool.setuptools.packages.find]
 include = ["coherax*"]
 exclude = ["coherax.deprecated*"]

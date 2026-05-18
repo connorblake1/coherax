@@ -5,8 +5,10 @@
 
 Provides abstract :class:`Ket` and :class:`DM` base classes with concrete
 implementations :class:`CoherentKet`, :class:`CoherentDM`, :class:`FockKet`,
-:class:`FockDM`, :class:`QubitKet`, :class:`JointKet`, the :class:`Operator`,
-:class:`Displacer`, :class:`Rotator`, :class:`CPTP` operators, and
+:class:`FockDM`, :class:`QubitKet`, :class:`JointKet`, the typed
+basis-defined operators :class:`CoherentCoherentOp`, :class:`FockFockOp`,
+:class:`CoherentFockOp`, :class:`FockCoherentOp`, the analytic operators
+:class:`Displacer`, :class:`Rotator`, :class:`CPTP`, and
 :class:`BosonicSubspace`.
 """
 
@@ -20,14 +22,14 @@ import jax.numpy as jnp
 import jax.scipy.special as jsp
 from jaxtyping import Array
 
-from coherax.operators import (
+from coherax.linalg_utils import (
     GKP_N,
     aOmegab,
     coherent_overlap,
     dag,
-    dqcoherent,
     sparse_eigh,
 )
+from coherax._fock import dqcoherent
 
 
 # ---------------------------------------------------------------------------
@@ -255,30 +257,6 @@ class CoherentKet(Ket):
             return _inner_coherent_fock(self, other)
         raise TypeError(f"Cannot compute inner product with {type(other)}")
 
-    @jax.jit
-    def __call__(self, u: complex) -> Array:
-        r"""Evaluate the characteristic function :math:`\chi(u)`.
-
-        Parameters
-        ----------
-        u : complex
-            Phase-space point.
-
-        Returns
-        -------
-        Array
-            Scalar complex value of the characteristic function at *u*.
-        """
-        N = self.cs.shape[0]
-        ca = self.cs.reshape(1, N)
-        da = self.ds.reshape(1, N)
-        cb = self.cs.reshape(N, 1)
-        db = self.ds.reshape(N, 1)
-        envelope = jnp.exp(
-            -0.5 * _abs_sq(db - da - u) + 1j * (aOmegab(da, db) + aOmegab(u, da + db))
-        )
-        return jnp.sum(jnp.conj(ca) * cb * envelope)
-
     @partial(jax.jit, static_argnums=1)
     def to_fock_ket(self, N: int = GKP_N) -> Array:
         """Convert to a Fock-basis state vector.
@@ -469,6 +447,41 @@ class QubitKet(FockKet):
         super().__init__(cs=cs, ns=jnp.array([0, 1]))
 
 
+class LogicalKet(FockKet):
+    r"""State in a *D*-dimensional orthonormal logical subspace of Fock space.
+
+    A :class:`LogicalKet` is a :class:`FockKet` whose ``ns`` indices are
+    distinct (giving an automatically orthonormal subspace) and whose
+    coefficient vector encodes the logical state
+    :math:`|\psi\rangle = \sum_{k=0}^{D-1} c_k |n_k\rangle`. By default
+    the logical basis is the first *D* Fock states (``ns = [0, 1, ..., D-1]``);
+    pass ``ns`` explicitly to embed in a non-contiguous subspace. The
+    coefficients are normalized on construction by :class:`FockKet`.
+
+    Parameters
+    ----------
+    cs : Array, shape ``(D,)``
+        Logical-basis coefficients.
+    ns : Array, shape ``(D,)`` | None
+        Fock indices spanning the logical subspace. Must be all distinct.
+        Defaults to ``jnp.arange(D)``.
+
+    Examples
+    --------
+    >>> import jax.numpy as jnp
+    >>> from coherax.states import LogicalKet
+    >>> # |0_L> + |2_L> in a 3-d subspace
+    >>> psi = LogicalKet(cs=jnp.array([1.0, 0.0, 1.0]))
+    >>> # 3-d subspace embedded at Fock levels 0, 2, 5
+    >>> psi2 = LogicalKet(cs=jnp.array([1.0, 0.0, 1.0]), ns=jnp.array([0, 2, 5]))
+    """
+
+    def __init__(self, cs: Array, ns: Array | None = None) -> None:
+        if ns is None:
+            ns = jnp.arange(cs.shape[0])
+        super().__init__(cs=cs, ns=ns)
+
+
 # ---------------------------------------------------------------------------
 # Joint ket (bosonic mode x qubit)
 # ---------------------------------------------------------------------------
@@ -616,15 +629,20 @@ class JointKet(Ket):
     def to_fock_ket(self, N: int = GKP_N) -> Array:
         r"""Convert to a Fock-basis state vector in the tensor product space.
 
-        The ordering convention is :math:`|n\rangle\otimes|\mu\rangle` with
-        the bosonic index running fastest:
+        Uses the library-wide ``dqtensor(cavity, qubit) =
+        kron(cavity, qubit)`` convention: cavity is the slow index and
+        qubit is the fast index, so component ``[2n + mu]`` corresponds
+        to cavity Fock state :math:`|n\rangle` and qubit state
+        :math:`|\mu\rangle`. This matches the layout produced by
+        :func:`coherax.circuits.CD`, :func:`coherax.circuits.ECD`, and
+        :func:`coherax.circuits.circuit_layer`.
 
         .. math::
 
             |\Psi\rangle_{\mathrm{Fock}}
-            = \begin{pmatrix}
-                \psi_{\mu=0} \\ \psi_{\mu=1}
-              \end{pmatrix}
+            = \sum_{\mu}
+              \Bigl(\sum_a c_{\mu a}\,|d_{\mu a}\rangle\Bigr)
+              \otimes |\mu\rangle
             \in \mathbb{C}^{2N}
 
         Parameters
@@ -636,12 +654,15 @@ class JointKet(Ket):
         -------
         Array, shape ``(2*N,)``
         """
-        psi = jnp.zeros(2 * N, dtype=jnp.complex128)
-        for mu in range(2):
-            coherents = jax.vmap(lambda alpha: dqcoherent(N, alpha))(self.ds[mu])
-            psi_mu = jnp.einsum("ija,i->ja", coherents, self.cs[mu]).squeeze()
-            psi = psi.at[mu * N:(mu + 1) * N].set(psi_mu)
-        return psi
+        def cavity_ket(cs_mu: Array, ds_mu: Array) -> Array:
+            coherents = jax.vmap(lambda alpha: dqcoherent(N, alpha))(ds_mu)
+            return jnp.einsum("ija,i->ja", coherents, cs_mu).squeeze(-1)
+
+        cav0 = cavity_ket(self.cs[0], self.ds[0])
+        cav1 = cavity_ket(self.cs[1], self.ds[1])
+        q0 = jnp.array([1.0 + 0j, 0.0 + 0j], dtype=jnp.complex128)
+        q1 = jnp.array([0.0 + 0j, 1.0 + 0j], dtype=jnp.complex128)
+        return jnp.kron(cav0, q0) + jnp.kron(cav1, q1)
 
     @partial(jax.jit, static_argnums=1)
     def to_fock_basis(self, N: int = GKP_N) -> Array:
@@ -1103,150 +1124,422 @@ def _dm_inner_fock_coherent(fdm: FockDM, cdm: CoherentDM) -> Array:
 # ---------------------------------------------------------------------------
 
 
-def _weighted_sum_kets(kets: list[Ket], weights: list[Array]) -> Ket:
-    """Compute the weighted superposition :math:`\\sum_i w_i |\\psi_i\\rangle`.
+# ---------------------------------------------------------------------------
+# Typed basis-defined operators
+#
+# Each class represents O = sum_i |phi_i><psi_i| with one specific basis
+# combination on the from- and to-sides. Domain and codomain kets are stored
+# as stacked (M, A) arrays so that apply/wrap are pure einsum kernels --
+# fully jittable, no Python-level branching, no list iteration. M is the
+# number of basis kets; A is the (fixed) number of coherent/Fock terms per
+# basis ket. To use kets with different A, pad with zero-weight terms.
+#
+# All four classes share a uniform interface:
+#   apply(psi)      -> matching-type output ket
+#   apply_adj(psi)  -> matching-type output ket (acts as O^dagger)
+#   dagger()        -> swapped operator type
+#   wrap(rho)       -> O rho O^dagger as a matching-type DM
+#
+# Output kets/DMs are normalized by their constructors, matching the
+# convention of the rest of the library. Use these classes when you want
+# to stay within a fixed basis pair; convert explicitly when you need to
+# cross bases.
+# ---------------------------------------------------------------------------
 
-    All kets must be the same concrete type.
+
+def _coherent_overlap_batched(ds_a: Array, ds_b: Array) -> Array:
+    r"""Pairwise :math:`\langle d_a | d_b \rangle` for stacked displacements.
 
     Parameters
     ----------
-    kets : list[Ket]
-        Basis kets (all the same type).
-    weights : list[Array]
-        Complex scalar weights.
+    ds_a : Array, shape ``(..., A)``
+    ds_b : Array, shape ``(..., B)``
 
     Returns
     -------
-    Ket
-        Combined, normalized ket.
+    Array, shape broadcast of ``(..., A, B)``
     """
-    if all(isinstance(k, CoherentKet) for k in kets):
-        combined_ds = jnp.concatenate([k.ds for k in kets])
-        combined_cs = jnp.concatenate([w * k.cs for w, k in zip(weights, kets)])
-        return CoherentKet(cs=combined_cs, ds=combined_ds)
-    if all(isinstance(k, FockKet) for k in kets):
-        combined_ns = jnp.concatenate([k.ns for k in kets])
-        combined_cs = jnp.concatenate([w * k.cs for w, k in zip(weights, kets)])
-        return FockKet(cs=combined_cs, ns=combined_ns)
-    raise TypeError(
-        "All target kets must be the same concrete type (CoherentKet or FockKet)"
-    )
+    return coherent_overlap(ds_a[..., :, None], ds_b[..., None, :])
 
 
-class Operator(eqx.Module):
-    r"""Operator :math:`O = \sum_i |\phi_i\rangle\langle\psi_i|`.
+def _fock_delta_batched(ns_a: Array, ns_b: Array) -> Array:
+    r"""Pairwise :math:`\delta_{n_a, n_b}` for stacked Fock indices."""
+    return (ns_a[..., :, None] == ns_b[..., None, :]).astype(jnp.complex128)
 
-    Built from two lists of kets spanning the domain and codomain Hilbert
-    spaces.  Applying the operator to a ket :math:`|\xi\rangle` computes
 
-    .. math::
-        O|\xi\rangle = \sum_i \langle\psi_i|\xi\rangle\,|\phi_i\rangle
+class CoherentCoherentOp(eqx.Module):
+    r"""Operator :math:`O = \sum_i |\phi_i\rangle\langle\psi_i|` with coherent-basis kets on both sides.
+
+    Each domain ket :math:`|\psi_i\rangle = \sum_a \mathrm{cs\_from}[i,a]\,
+    |\mathrm{ds\_from}[i,a]\rangle` and similarly for codomain kets
+    :math:`|\phi_i\rangle`. All M basis kets must share the same per-ket
+    term count (``A_from`` and ``A_to``); pad with zero coefficients if
+    needed.
 
     Parameters
     ----------
-    kets_from : list[Ket]
-        Orthonormal basis kets for the domain (the :math:`|\psi_i\rangle`).
-    kets_to : list[Ket]
-        Orthonormal basis kets for the codomain (the :math:`|\phi_i\rangle`).
-
-    Examples
-    --------
-    >>> import jax.numpy as jnp
-    >>> from coherax.states import FockKet, CoherentKet, Operator
-    >>> # Embed |0>,|1> into a coherent-state codespace
-    >>> basis_from = [FockKet(cs=jnp.array([1.0]), ns=jnp.array([0])),
-    ...              FockKet(cs=jnp.array([1.0]), ns=jnp.array([1]))]
-    >>> alpha = 2.0
-    >>> basis_to = [CoherentKet(cs=jnp.array([1.0, 1.0]),
-    ...                         ds=jnp.array([alpha, -alpha])),
-    ...            CoherentKet(cs=jnp.array([1.0, -1.0]),
-    ...                         ds=jnp.array([alpha, -alpha]))]
-    >>> op = Operator(kets_from=basis_from, kets_to=basis_to)
-    >>> result = op.apply(basis_from[0])
+    cs_from, ds_from : Array, shape ``(M, A_from)``
+        Coefficient and displacement stacks for the domain basis kets.
+    cs_to, ds_to : Array, shape ``(M, A_to)``
+        Coefficient and displacement stacks for the codomain basis kets.
     """
 
-    kets_from: list[Ket]
-    kets_to: list[Ket]
+    cs_from: Array
+    ds_from: Array
+    cs_to: Array
+    ds_to: Array
 
-    def __init__(self, kets_from: list[Ket], kets_to: list[Ket]) -> None:
-        if len(kets_from) != len(kets_to):
+    def __init__(self, cs_from: Array, ds_from: Array, cs_to: Array, ds_to: Array) -> None:
+        cs_from = jnp.asarray(cs_from, dtype=jnp.complex128)
+        ds_from = jnp.asarray(ds_from, dtype=jnp.complex128)
+        cs_to = jnp.asarray(cs_to, dtype=jnp.complex128)
+        ds_to = jnp.asarray(ds_to, dtype=jnp.complex128)
+        if cs_from.shape != ds_from.shape:
+            raise ValueError(f"cs_from {cs_from.shape} != ds_from {ds_from.shape}")
+        if cs_to.shape != ds_to.shape:
+            raise ValueError(f"cs_to {cs_to.shape} != ds_to {ds_to.shape}")
+        if cs_from.ndim != 2 or cs_to.ndim != 2:
+            raise ValueError("cs_from and cs_to must be 2D (M, A) arrays")
+        if cs_from.shape[0] != cs_to.shape[0]:
             raise ValueError(
-                f"kets_from ({len(kets_from)}) and kets_to "
-                f"({len(kets_to)}) must have the same length"
+                f"cs_from has M={cs_from.shape[0]} kets but cs_to has M={cs_to.shape[0]}"
             )
-        self.kets_from = list(kets_from)
-        self.kets_to = list(kets_to)
+        self.cs_from = cs_from
+        self.ds_from = ds_from
+        self.cs_to = cs_to
+        self.ds_to = ds_to
 
-    def apply(self, psi: Ket) -> Ket:
-        r"""Apply the operator: :math:`O|\psi\rangle = \sum_i \langle\psi_i|\psi\rangle\,|\phi_i\rangle`.
+    @classmethod
+    def from_kets(
+        cls,
+        kets_from: list[CoherentKet],
+        kets_to: list[CoherentKet],
+    ) -> CoherentCoherentOp:
+        """Construct from lists of homogeneous :class:`CoherentKet` objects."""
+        if len(kets_from) != len(kets_to):
+            raise ValueError("kets_from and kets_to must have the same length")
+        cs_from = jnp.stack([k.cs for k in kets_from])
+        ds_from = jnp.stack([k.ds for k in kets_from])
+        cs_to = jnp.stack([k.cs for k in kets_to])
+        ds_to = jnp.stack([k.ds for k in kets_to])
+        return cls(cs_from=cs_from, ds_from=ds_from, cs_to=cs_to, ds_to=ds_to)
 
-        Parameters
-        ----------
-        psi : Ket
-            Input ket in the domain Hilbert space.
-
-        Returns
-        -------
-        Ket
-            Output ket in the codomain Hilbert space (normalized).
-        """
-        weights = [kf.inner(psi) for kf in self.kets_from]
-        return _weighted_sum_kets(self.kets_to, weights)
-
-    def apply_adj(self, psi: Ket) -> Ket:
-        r"""Apply the adjoint: :math:`O^\dagger|\psi\rangle = \sum_i \langle\phi_i|\psi\rangle\,|\psi_i\rangle`.
-
-        Parameters
-        ----------
-        psi : Ket
-            Input ket in the codomain Hilbert space.
-
-        Returns
-        -------
-        Ket
-            Output ket in the domain Hilbert space (normalized).
-        """
-        weights = [kt.inner(psi) for kt in self.kets_to]
-        return _weighted_sum_kets(self.kets_from, weights)
-
-    def dagger(self) -> Operator:
-        r"""Return the adjoint operator :math:`O^\dagger`.
-
-        Returns
-        -------
-        Operator
-        """
-        return Operator(kets_from=self.kets_to, kets_to=self.kets_from)
-
-    def apply_dm(self, rho: DM) -> DM:
-        r"""Apply :math:`O \rho O^\dagger`.
+    def apply(self, psi: CoherentKet) -> CoherentKet:
+        r"""Apply :math:`O|\psi\rangle = \sum_i \langle\psi_i|\psi\rangle\,|\phi_i\rangle`.
 
         .. math::
 
-            O \rho O^\dagger
-
-        Only implemented for Fock-basis conversion; raises
-        :class:`NotImplementedError` for basis-defined operators acting
-        on coherent-basis density matrices.
-
-        Parameters
-        ----------
-        rho : DM
-            Input density matrix.
-
-        Returns
-        -------
-        DM
-
-        Raises
-        ------
-        NotImplementedError
-            Always, since basis-defined operators require Fock-space
-            conversion for density matrix application.
+            \langle\psi_i|\psi\rangle
+            = \sum_{a,b} \overline{\mathrm{cs\_from}[i,a]}\,
+              \mathrm{cs}_\psi[b]\,
+              \langle \mathrm{ds\_from}[i,a] | \mathrm{ds}_\psi[b] \rangle
         """
-        raise NotImplementedError(
-            "apply_dm on basis Operator requires Fock-space conversion"
+        G = _coherent_overlap_batched(self.ds_from, psi.ds[None, :])  # (M, A_from, A_psi)
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_from), psi.cs, G)
+        out_cs = (weights[:, None] * self.cs_to).reshape(-1)
+        out_ds = self.ds_to.reshape(-1)
+        return CoherentKet(cs=out_cs, ds=out_ds)
+
+    def apply_adj(self, psi: CoherentKet) -> CoherentKet:
+        r"""Apply :math:`O^\dagger|\psi\rangle = \sum_i \langle\phi_i|\psi\rangle\,|\psi_i\rangle`."""
+        G = _coherent_overlap_batched(self.ds_to, psi.ds[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_to), psi.cs, G)
+        out_cs = (weights[:, None] * self.cs_from).reshape(-1)
+        out_ds = self.ds_from.reshape(-1)
+        return CoherentKet(cs=out_cs, ds=out_ds)
+
+    def dagger(self) -> CoherentCoherentOp:
+        return CoherentCoherentOp(
+            cs_from=self.cs_to, ds_from=self.ds_to,
+            cs_to=self.cs_from, ds_to=self.ds_from,
         )
+
+    def wrap(self, rho: CoherentDM) -> CoherentDM:
+        r"""Apply :math:`O \rho O^\dagger`.
+
+        With :math:`W_{ij} = \langle\psi_i|\rho|\psi_j\rangle`, the output
+        DM has matrix elements
+
+        .. math::
+
+            \rho^{\mathrm{out}}_{(i,b),(j,b')}
+            = W_{ij}\,\mathrm{cs\_to}[i,b]\,
+              \overline{\mathrm{cs\_to}[j,b']}
+
+        in the basis of displacements :math:`\mathrm{ds\_to}[i,b]`.
+        """
+        # H[i, p] = sum_a conj(cs_from[i, a]) * <ds_from[i, a] | rho.ds[p]>
+        G = _coherent_overlap_batched(self.ds_from, rho.ds[None, :])  # (M, A_from, A_rho)
+        H = jnp.einsum("ia,iap->ip", jnp.conj(self.cs_from), G)
+        W = H @ rho.C @ dag(H)  # (M, M)
+        # C^out[i, b, j, b'] = W[i, j] * cs_to[i, b] * conj(cs_to[j, b'])
+        C_out_4d = (
+            W[:, None, :, None]
+            * self.cs_to[:, :, None, None]
+            * jnp.conj(self.cs_to)[None, None, :, :]
+        )
+        M, A_to = self.cs_to.shape
+        C_out = C_out_4d.reshape(M * A_to, M * A_to)
+        ds_out = self.ds_to.reshape(-1)
+        return CoherentDM(C=C_out, ds=ds_out)
+
+
+class FockFockOp(eqx.Module):
+    r"""Operator :math:`O = \sum_i |\phi_i\rangle\langle\psi_i|` with Fock-basis kets on both sides.
+
+    Each :math:`|\psi_i\rangle = \sum_a \mathrm{cs\_from}[i,a]\,
+    |\mathrm{ns\_from}[i,a]\rangle` and similarly for codomain.
+
+    Parameters
+    ----------
+    cs_from : Array, shape ``(M, A_from)``
+    ns_from : Array, shape ``(M, A_from)`` (integer)
+    cs_to : Array, shape ``(M, A_to)``
+    ns_to : Array, shape ``(M, A_to)`` (integer)
+    """
+
+    cs_from: Array
+    ns_from: Array
+    cs_to: Array
+    ns_to: Array
+
+    def __init__(self, cs_from: Array, ns_from: Array, cs_to: Array, ns_to: Array) -> None:
+        cs_from = jnp.asarray(cs_from, dtype=jnp.complex128)
+        cs_to = jnp.asarray(cs_to, dtype=jnp.complex128)
+        ns_from = jnp.asarray(ns_from)
+        ns_to = jnp.asarray(ns_to)
+        if cs_from.shape != ns_from.shape:
+            raise ValueError(f"cs_from {cs_from.shape} != ns_from {ns_from.shape}")
+        if cs_to.shape != ns_to.shape:
+            raise ValueError(f"cs_to {cs_to.shape} != ns_to {ns_to.shape}")
+        if cs_from.ndim != 2 or cs_to.ndim != 2:
+            raise ValueError("cs_from and cs_to must be 2D (M, A) arrays")
+        if cs_from.shape[0] != cs_to.shape[0]:
+            raise ValueError(
+                f"cs_from has M={cs_from.shape[0]} kets but cs_to has M={cs_to.shape[0]}"
+            )
+        self.cs_from = cs_from
+        self.ns_from = ns_from
+        self.cs_to = cs_to
+        self.ns_to = ns_to
+
+    @classmethod
+    def from_kets(
+        cls,
+        kets_from: list[FockKet],
+        kets_to: list[FockKet],
+    ) -> FockFockOp:
+        """Construct from lists of homogeneous :class:`FockKet` objects."""
+        if len(kets_from) != len(kets_to):
+            raise ValueError("kets_from and kets_to must have the same length")
+        cs_from = jnp.stack([k.cs for k in kets_from])
+        ns_from = jnp.stack([k.ns for k in kets_from])
+        cs_to = jnp.stack([k.cs for k in kets_to])
+        ns_to = jnp.stack([k.ns for k in kets_to])
+        return cls(cs_from=cs_from, ns_from=ns_from, cs_to=cs_to, ns_to=ns_to)
+
+    def apply(self, psi: FockKet) -> FockKet:
+        delta = _fock_delta_batched(self.ns_from, psi.ns[None, :])  # (M, A_from, A_psi)
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_from), psi.cs, delta)
+        out_cs = (weights[:, None] * self.cs_to).reshape(-1)
+        out_ns = self.ns_to.reshape(-1)
+        return FockKet(cs=out_cs, ns=out_ns)
+
+    def apply_adj(self, psi: FockKet) -> FockKet:
+        delta = _fock_delta_batched(self.ns_to, psi.ns[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_to), psi.cs, delta)
+        out_cs = (weights[:, None] * self.cs_from).reshape(-1)
+        out_ns = self.ns_from.reshape(-1)
+        return FockKet(cs=out_cs, ns=out_ns)
+
+    def dagger(self) -> FockFockOp:
+        return FockFockOp(
+            cs_from=self.cs_to, ns_from=self.ns_to,
+            cs_to=self.cs_from, ns_to=self.ns_from,
+        )
+
+    def wrap(self, rho: FockDM) -> FockDM:
+        # H[i, p] = sum_a conj(cs_from[i, a]) * delta(ns_from[i, a], rho.ns[p])
+        delta = _fock_delta_batched(self.ns_from, rho.ns[None, :])
+        H = jnp.einsum("ia,iap->ip", jnp.conj(self.cs_from), delta)
+        W = H @ rho.C @ dag(H)
+        C_out_4d = (
+            W[:, None, :, None]
+            * self.cs_to[:, :, None, None]
+            * jnp.conj(self.cs_to)[None, None, :, :]
+        )
+        M, A_to = self.cs_to.shape
+        return FockDM(C=C_out_4d.reshape(M * A_to, M * A_to), ns=self.ns_to.reshape(-1))
+
+
+class CoherentFockOp(eqx.Module):
+    r"""Operator with coherent-basis domain and Fock-basis codomain.
+
+    :math:`O = \sum_i |\phi_i^{\mathrm{fock}}\rangle\langle\psi_i^{\mathrm{coh}}|`.
+
+    Parameters
+    ----------
+    cs_from, ds_from : Array, shape ``(M, A_from)``
+        Coherent-basis domain ket stacks.
+    cs_to : Array, shape ``(M, A_to)``
+    ns_to : Array, shape ``(M, A_to)`` (integer)
+        Fock-basis codomain ket stacks.
+    """
+
+    cs_from: Array
+    ds_from: Array
+    cs_to: Array
+    ns_to: Array
+
+    def __init__(self, cs_from: Array, ds_from: Array, cs_to: Array, ns_to: Array) -> None:
+        cs_from = jnp.asarray(cs_from, dtype=jnp.complex128)
+        ds_from = jnp.asarray(ds_from, dtype=jnp.complex128)
+        cs_to = jnp.asarray(cs_to, dtype=jnp.complex128)
+        ns_to = jnp.asarray(ns_to)
+        if cs_from.shape != ds_from.shape:
+            raise ValueError(f"cs_from {cs_from.shape} != ds_from {ds_from.shape}")
+        if cs_to.shape != ns_to.shape:
+            raise ValueError(f"cs_to {cs_to.shape} != ns_to {ns_to.shape}")
+        if cs_from.ndim != 2 or cs_to.ndim != 2:
+            raise ValueError("cs_from and cs_to must be 2D (M, A) arrays")
+        if cs_from.shape[0] != cs_to.shape[0]:
+            raise ValueError(
+                f"cs_from has M={cs_from.shape[0]} kets but cs_to has M={cs_to.shape[0]}"
+            )
+        self.cs_from = cs_from
+        self.ds_from = ds_from
+        self.cs_to = cs_to
+        self.ns_to = ns_to
+
+    @classmethod
+    def from_kets(
+        cls,
+        kets_from: list[CoherentKet],
+        kets_to: list[FockKet],
+    ) -> CoherentFockOp:
+        if len(kets_from) != len(kets_to):
+            raise ValueError("kets_from and kets_to must have the same length")
+        return cls(
+            cs_from=jnp.stack([k.cs for k in kets_from]),
+            ds_from=jnp.stack([k.ds for k in kets_from]),
+            cs_to=jnp.stack([k.cs for k in kets_to]),
+            ns_to=jnp.stack([k.ns for k in kets_to]),
+        )
+
+    def apply(self, psi: CoherentKet) -> FockKet:
+        G = _coherent_overlap_batched(self.ds_from, psi.ds[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_from), psi.cs, G)
+        out_cs = (weights[:, None] * self.cs_to).reshape(-1)
+        out_ns = self.ns_to.reshape(-1)
+        return FockKet(cs=out_cs, ns=out_ns)
+
+    def apply_adj(self, psi: FockKet) -> CoherentKet:
+        # weights[i] = <phi_i^fock | psi^fock> = sum_a sum_b conj(cs_to[i,a])
+        # * cs_psi[b] * delta(ns_to[i,a], ns_psi[b])
+        delta = _fock_delta_batched(self.ns_to, psi.ns[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_to), psi.cs, delta)
+        out_cs = (weights[:, None] * self.cs_from).reshape(-1)
+        out_ds = self.ds_from.reshape(-1)
+        return CoherentKet(cs=out_cs, ds=out_ds)
+
+    def dagger(self) -> FockCoherentOp:
+        return FockCoherentOp(
+            cs_from=self.cs_to, ns_from=self.ns_to,
+            cs_to=self.cs_from, ds_to=self.ds_from,
+        )
+
+    def wrap(self, rho: CoherentDM) -> FockDM:
+        # Domain is coherent (matches rho), codomain is fock.
+        G = _coherent_overlap_batched(self.ds_from, rho.ds[None, :])
+        H = jnp.einsum("ia,iap->ip", jnp.conj(self.cs_from), G)
+        W = H @ rho.C @ dag(H)
+        C_out_4d = (
+            W[:, None, :, None]
+            * self.cs_to[:, :, None, None]
+            * jnp.conj(self.cs_to)[None, None, :, :]
+        )
+        M, A_to = self.cs_to.shape
+        return FockDM(C=C_out_4d.reshape(M * A_to, M * A_to), ns=self.ns_to.reshape(-1))
+
+
+class FockCoherentOp(eqx.Module):
+    r"""Operator with Fock-basis domain and coherent-basis codomain.
+
+    :math:`O = \sum_i |\phi_i^{\mathrm{coh}}\rangle\langle\psi_i^{\mathrm{fock}}|`.
+    """
+
+    cs_from: Array
+    ns_from: Array
+    cs_to: Array
+    ds_to: Array
+
+    def __init__(self, cs_from: Array, ns_from: Array, cs_to: Array, ds_to: Array) -> None:
+        cs_from = jnp.asarray(cs_from, dtype=jnp.complex128)
+        cs_to = jnp.asarray(cs_to, dtype=jnp.complex128)
+        ds_to = jnp.asarray(ds_to, dtype=jnp.complex128)
+        ns_from = jnp.asarray(ns_from)
+        if cs_from.shape != ns_from.shape:
+            raise ValueError(f"cs_from {cs_from.shape} != ns_from {ns_from.shape}")
+        if cs_to.shape != ds_to.shape:
+            raise ValueError(f"cs_to {cs_to.shape} != ds_to {ds_to.shape}")
+        if cs_from.ndim != 2 or cs_to.ndim != 2:
+            raise ValueError("cs_from and cs_to must be 2D (M, A) arrays")
+        if cs_from.shape[0] != cs_to.shape[0]:
+            raise ValueError(
+                f"cs_from has M={cs_from.shape[0]} kets but cs_to has M={cs_to.shape[0]}"
+            )
+        self.cs_from = cs_from
+        self.ns_from = ns_from
+        self.cs_to = cs_to
+        self.ds_to = ds_to
+
+    @classmethod
+    def from_kets(
+        cls,
+        kets_from: list[FockKet],
+        kets_to: list[CoherentKet],
+    ) -> FockCoherentOp:
+        if len(kets_from) != len(kets_to):
+            raise ValueError("kets_from and kets_to must have the same length")
+        return cls(
+            cs_from=jnp.stack([k.cs for k in kets_from]),
+            ns_from=jnp.stack([k.ns for k in kets_from]),
+            cs_to=jnp.stack([k.cs for k in kets_to]),
+            ds_to=jnp.stack([k.ds for k in kets_to]),
+        )
+
+    def apply(self, psi: FockKet) -> CoherentKet:
+        delta = _fock_delta_batched(self.ns_from, psi.ns[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_from), psi.cs, delta)
+        out_cs = (weights[:, None] * self.cs_to).reshape(-1)
+        out_ds = self.ds_to.reshape(-1)
+        return CoherentKet(cs=out_cs, ds=out_ds)
+
+    def apply_adj(self, psi: CoherentKet) -> FockKet:
+        G = _coherent_overlap_batched(self.ds_to, psi.ds[None, :])
+        weights = jnp.einsum("ia,b,iab->i", jnp.conj(self.cs_to), psi.cs, G)
+        out_cs = (weights[:, None] * self.cs_from).reshape(-1)
+        out_ns = self.ns_from.reshape(-1)
+        return FockKet(cs=out_cs, ns=out_ns)
+
+    def dagger(self) -> CoherentFockOp:
+        return CoherentFockOp(
+            cs_from=self.cs_to, ds_from=self.ds_to,
+            cs_to=self.cs_from, ns_to=self.ns_from,
+        )
+
+    def wrap(self, rho: FockDM) -> CoherentDM:
+        # Domain is fock (matches rho), codomain is coherent.
+        delta = _fock_delta_batched(self.ns_from, rho.ns[None, :])
+        H = jnp.einsum("ia,iap->ip", jnp.conj(self.cs_from), delta)
+        W = H @ rho.C @ dag(H)
+        C_out_4d = (
+            W[:, None, :, None]
+            * self.cs_to[:, :, None, None]
+            * jnp.conj(self.cs_to)[None, None, :, :]
+        )
+        M, A_to = self.cs_to.shape
+        return CoherentDM(C=C_out_4d.reshape(M * A_to, M * A_to), ds=self.ds_to.reshape(-1))
 
 
 class Displacer(eqx.Module):
@@ -1532,6 +1825,10 @@ class BosonicSubspace(eqx.Module):
     def ket_c2o_transform(self, ket: Array) -> Array:
         """Transform a ket from the coherent basis to the orthonormal basis.
 
+        Low-level array method that preserves un-normalized magnitudes.
+        For a typed entry point that wraps the result as a
+        :class:`CoherentKet`, see :meth:`coherent_ket_to_orthonormal`.
+
         Parameters
         ----------
         ket : Array, shape ``(A,)``
@@ -1590,3 +1887,66 @@ class BosonicSubspace(eqx.Module):
         """
         coherents = jnp.squeeze(jax.vmap(lambda alpha: dqcoherent(N, alpha))(self.ds))
         return jnp.einsum("ai,bj,ab->ij", coherents, jnp.conj(coherents), O)
+
+    # ------------------------------------------------------------------
+    # Typed CoherentKet entry points
+    #
+    # A "ket in this subspace" is just a :class:`CoherentKet` whose
+    # displacements match ``self.ds``. These methods wrap the lower-level
+    # array transforms so callers can work in the typed CoherentKet
+    # framework. Note that :class:`CoherentKet` normalizes on
+    # construction; use the underlying array methods if you need to keep
+    # un-normalized intermediates.
+    # ------------------------------------------------------------------
+
+    def coherent_ket(self, cs: Array) -> CoherentKet:
+        r"""Wrap a coefficient array as a :class:`CoherentKet` in this subspace.
+
+        Parameters
+        ----------
+        cs : Array, shape ``(A,)``
+            Coefficients in the coherent (non-orthonormal) basis with
+            displacements ``self.ds``.
+
+        Returns
+        -------
+        CoherentKet
+            Normalized coherent-state superposition
+            :math:`\sum_a c_a |d_a\rangle` with :math:`d_a = \mathrm{self.ds}[a]`.
+        """
+        return CoherentKet(cs=cs, ds=self.ds)
+
+    def coherent_ket_to_orthonormal(self, ket: CoherentKet) -> Array:
+        r"""Transform a :class:`CoherentKet`'s coefficients to the orthonormal basis.
+
+        The caller is responsible for ensuring ``ket.ds == self.ds``; this
+        method only consumes ``ket.cs``. Equivalent to
+        ``self.ket_c2o_transform(ket.cs)``.
+
+        Parameters
+        ----------
+        ket : CoherentKet
+            A coherent ket whose displacements match ``self.ds``.
+
+        Returns
+        -------
+        Array, shape ``(K,)``
+            Coefficients in the orthonormal basis.
+        """
+        return self.ket_c2o_transform(ket.cs)
+
+    def orthonormal_to_coherent_ket(self, coeffs: Array) -> CoherentKet:
+        r"""Build a :class:`CoherentKet` from orthonormal-basis coefficients.
+
+        Parameters
+        ----------
+        coeffs : Array, shape ``(K,)``
+            Coefficients in the orthonormal basis.
+
+        Returns
+        -------
+        CoherentKet
+            Coherent-basis representation, normalized by
+            :class:`CoherentKet` construction.
+        """
+        return CoherentKet(cs=self.ket_o2c_transform(coeffs), ds=self.ds)

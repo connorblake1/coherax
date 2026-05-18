@@ -1,8 +1,19 @@
-"""Low-level quantum operators, dynamiqs wrappers, and global constants.
+"""Dynamiqs glue, pre-built Fock-basis constants, and Fock-basis channel utilities.
 
-This module provides thin JAX-compatible wrappers around dynamiqs functions,
-Pauli operators, bosonic mode operators, and the Hilbert space truncation
-constant ``GKP_N``.
+This module is transitional: the dynamiqs wrappers will be removed once the
+benchmarking paths against ``dq`` are no longer needed. Kept private (leading
+underscore) to discourage external imports.
+
+Contents:
+
+- Thin JAX-compatible wrappers around dynamiqs (``dqtensor``, ``dqcoherent``,
+  ``dqdisplace``, ``dqdag``, ...).
+- Pre-built constants at :data:`coherax.linalg_utils.GKP_N`: identities,
+  Pauli operators, bosonic ladder operators, quadratures, qubit basis kets.
+- Fock-basis Kraus-map utilities: :func:`apply_kraus_map`,
+  :func:`compose_channel_kraus`, :func:`make_pureloss_fock`,
+  :func:`make_thermalloss_fock`, :func:`make_transpose_for_pureloss`,
+  :func:`von_neumann_entropy`.
 """
 
 from __future__ import annotations
@@ -18,12 +29,7 @@ import numpy as np
 import scipy.linalg as sla
 from jaxtyping import Array
 
-# ---------------------------------------------------------------------------
-# Hilbert space truncation
-# ---------------------------------------------------------------------------
-
-GKP_N: int = 100
-"""Fock-space truncation dimension for the bosonic mode."""
+from coherax.linalg_utils import GKP_N, dag
 
 # ---------------------------------------------------------------------------
 # dynamiqs -> JAX wrappers
@@ -40,12 +46,6 @@ def dqtensor(*args: Array) -> Array:
 def dqdag(arg: Array) -> Array:
     """Conjugate transpose via dynamiqs, returned as a JAX array."""
     return dq.dag(arg).to_jax()
-
-
-@jax.jit
-def dag(arr: Array) -> Array:
-    """Pure-JAX conjugate transpose (no dynamiqs dependency)."""
-    return jnp.conj(arr.T)
 
 
 def dqeye(n: int) -> Array:
@@ -123,52 +123,6 @@ def dqtodm(psi: Array) -> Array:
 
 
 # ---------------------------------------------------------------------------
-# Symplectic geometry
-# ---------------------------------------------------------------------------
-
-
-@jax.jit
-def aOmegab(a: Array, b: Array) -> Array:
-    r"""Symplectic inner product :math:`\operatorname{Re}(a)\operatorname{Im}(b)
-    - \operatorname{Im}(a)\operatorname{Re}(b)`.
-
-    Parameters
-    ----------
-    a, b : Array
-        Complex-valued arrays (broadcastable).
-
-    Returns
-    -------
-    Array
-        Real-valued symplectic product.
-    """
-    return jnp.real(a) * jnp.imag(b) - jnp.imag(a) * jnp.real(b)
-
-
-@jax.jit
-def e_n1iaOmegab(a: Array, b: Array) -> Array:
-    r"""Phase factor :math:`e^{-i\, a \Omega b}`."""
-    return jnp.exp(-1j * aOmegab(a, b))
-
-
-@jax.jit
-def coherent_overlap(alpha: Array, beta: Array) -> Array:
-    r"""Inner product :math:`\langle\alpha|\beta\rangle` of two coherent states.
-
-    Parameters
-    ----------
-    alpha, beta : Array
-        Complex amplitudes (broadcastable).
-
-    Returns
-    -------
-    Array
-        Complex overlap.
-    """
-    return jnp.exp(-0.5 * jnp.abs(alpha - beta) ** 2 + 1.0j * aOmegab(alpha, beta))
-
-
-# ---------------------------------------------------------------------------
 # Pre-built operators at GKP_N
 # ---------------------------------------------------------------------------
 
@@ -211,8 +165,9 @@ ket0: Array = dq.fock(2, 0)
 ket1: Array = dq.fock(2, 1)
 """Qubit excited state :math:`|1\\rangle`."""
 
+
 # ---------------------------------------------------------------------------
-# Quantum channels
+# Quantum channels (Fock-basis Kraus representation)
 # ---------------------------------------------------------------------------
 
 
@@ -341,7 +296,7 @@ def make_pureloss_fock(gamma: float, rank: int, N: int = GKP_N) -> Array:
 
 def make_transpose_for_pureloss(
     loss_ops: Array,
-    logical_0: "CoherentKet",  # noqa: F821  (forward ref)
+    logical_0: "CoherentKet",  # noqa: F821  (forward ref to avoid circular import)
     logical_1: "CoherentKet",  # noqa: F821
     eps: float = 1e-5,
 ) -> Array:
@@ -356,7 +311,7 @@ def make_transpose_for_pureloss(
     loss_ops : Array, shape ``(K, N, N)``
         Kraus operators of the loss channel.
     logical_0, logical_1 : CoherentKet
-        Logical code words.
+        Logical code words (anything with a ``to_fock_basis()`` method works).
     eps : float
         Eigenvalue cutoff for pseudo-inverse.
 
@@ -447,53 +402,3 @@ def make_thermalloss_fock(
             K_j += np.sqrt(p_thermal[k]) * block
         kraus_ops.append(K_j)
     return jnp.array(np.array(kraus_ops))
-
-
-# ---------------------------------------------------------------------------
-# Linear-algebra helpers
-# ---------------------------------------------------------------------------
-
-
-@jax.jit
-def invsqrtm(A: Array) -> Array:
-    r"""Matrix inverse square root :math:`A^{-1/2}` via eigendecomposition."""
-    w, v = jnp.linalg.eigh(A)
-    return (v / jnp.sqrt(w)) @ dag(v)
-
-
-def sparse_eigh(O: Array, eps: float = 1e-6) -> tuple[Array, Array]:
-    """Eigendecomposition keeping only eigenvalues >= *eps*.
-
-    Parameters
-    ----------
-    O : Array, shape ``(N, N)``
-        Hermitian matrix.
-    eps : float
-        Eigenvalue threshold.
-
-    Returns
-    -------
-    eigenvalues : Array, shape ``(K,)``
-    eigenvectors : Array, shape ``(N, K)``
-    """
-    lambda_O, U_O = jnp.linalg.eigh(O)
-    mask = lambda_O >= eps
-    return lambda_O[mask], U_O[:, mask]
-
-
-def sparse_tensor_eigh(T: Array, eps: float = 1e-6) -> tuple[Array, Array]:
-    """Eigendecomposition of a rank-4 block-Hermitian tensor.
-
-    Reshapes ``T`` of shape ``(A, A, A, A)`` into ``(A^2, A^2)`` before
-    calling :func:`sparse_eigh`.
-
-    Returns
-    -------
-    eigenvalues : Array, shape ``(K,)``
-    eigenmodes : Array, shape ``(A, A, K)``
-    """
-    A = T.shape[0]
-    M = jnp.reshape(T, (A * A, A * A))
-    w, U = sparse_eigh(M, eps=eps)
-    chis = jnp.reshape(U, (A, A, w.shape[0]))
-    return w, chis

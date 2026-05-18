@@ -2,28 +2,34 @@
 
 Public API is organized into submodules:
 
-- :mod:`coherax.operators` -- Quantum operators, dynamiqs wrappers, constants
-- :mod:`coherax.states` -- CoherentKet, CoherentDM, BosonicSubspace
+- :mod:`coherax.linalg_utils` -- Pure-JAX math primitives (GKP_N, coherent-state kernels, sparse eigh)
+- :mod:`coherax._fock` -- Dynamiqs glue, Fock-basis constants, Kraus-channel utilities (transitional)
+- :mod:`coherax.states` -- Ket/DM hierarchy and typed basis-defined operators
 - :mod:`coherax.circuits` -- CD+R circuit construction, TraceoutLayer, ``g()``
 - :mod:`coherax.fidelity` -- Analytic fidelity computations
 - :mod:`coherax.gkp` -- GKP code state generators
-- :mod:`coherax.info` -- Coherent information computations
 - :mod:`coherax.optimizers` -- ECD circuit optimization
 """
 
-from coherax.operators import (
+from coherax.linalg_utils import (
     GKP_N,
+    aOmegab,
+    coherent_overlap,
+    dag,
+    e_n1iaOmegab,
+    invsqrtm,
+    sparse_eigh,
+    sparse_tensor_eigh,
+)
+from coherax._fock import (
     IN,
     I2,
-    aOmegab,
     a_op,
     a_dag_op,
     apply_kraus_map,
     apply_kraus_map_n,
     apply_kraus_map_nonorm,
-    coherent_overlap,
     compose_channel_kraus,
-    dag,
     dqcoherent,
     dqcoherent_dm,
     dqcreate,
@@ -39,8 +45,6 @@ from coherax.operators import (
     dqtensor,
     dqtodm,
     dqtrace,
-    e_n1iaOmegab,
-    invsqrtm,
     ket0,
     ket1,
     make_pureloss_fock,
@@ -52,16 +56,33 @@ from coherax.operators import (
     sigma_x,
     sigma_y,
     sigma_z,
-    sparse_eigh,
-    sparse_tensor_eigh,
     von_neumann_entropy,
     x_quad,
 )
 
-from coherax.states import BosonicSubspace, CoherentDM, CoherentKet
+from coherax.states import (
+    BosonicSubspace,
+    CPTP,
+    CoherentCoherentOp,
+    CoherentDM,
+    CoherentFockOp,
+    CoherentKet,
+    DM,
+    Displacer,
+    FockCoherentOp,
+    FockDM,
+    FockFockOp,
+    FockKet,
+    JointKet,
+    Ket,
+    LogicalKet,
+    QubitKet,
+    Rotator,
+)
 
 from coherax.circuits import (
     CD,
+    CircuitUnitary,
     ECD,
     R_x,
     R_y,
@@ -90,16 +111,13 @@ from coherax.fidelity import (
     analytic_fidelity_wrapper,
     analytic_fidelity_transfer_wrapper,
     analytic_fidelity_fock_wrapper,
+    state_fidelity,
+    circuit_state_fidelity,
+    circuit_fock_fidelity,
 )
 
 from coherax.gkp import (
     gkp_coherent_dm,
-)
-
-from coherax.info import (
-    pureloss_coherent_info_from_coherent_kets,
-    pureloss_coherent_info_from_kets,
-    thermalloss_coherent_info_from_kets,
 )
 
 from coherax.optimizers import (
@@ -154,12 +172,27 @@ __all__ = [
     "make_transpose_for_pureloss",
     "von_neumann_entropy",
     # states
+    "Ket",
+    "DM",
     "CoherentKet",
     "CoherentDM",
+    "FockKet",
+    "FockDM",
+    "CoherentCoherentOp",
+    "FockFockOp",
+    "CoherentFockOp",
+    "FockCoherentOp",
+    "Displacer",
+    "Rotator",
+    "CPTP",
+    "QubitKet",
+    "LogicalKet",
+    "JointKet",
     "BosonicSubspace",
     # circuits
     "W",
     "CD",
+    "CircuitUnitary",
     "ECD",
     "R_x",
     "R_y",
@@ -185,10 +218,9 @@ __all__ = [
     "analytic_fidelity_wrapper",
     "analytic_fidelity_transfer_wrapper",
     "analytic_fidelity_fock_wrapper",
-    # info
-    "pureloss_coherent_info_from_coherent_kets",
-    "pureloss_coherent_info_from_kets",
-    "thermalloss_coherent_info_from_kets",
+    "state_fidelity",
+    "circuit_state_fidelity",
+    "circuit_fock_fidelity",
     # gkp
     "gkp_coherent_dm",
     # optimizers

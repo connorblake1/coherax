@@ -16,21 +16,23 @@ import jax.numpy as jnp
 import jax.scipy.linalg as jla
 from jaxtyping import Array
 
-from coherax.operators import (
+from coherax.linalg_utils import (
     GKP_N,
+    aOmegab,
+    e_n1iaOmegab,
+)
+from coherax._fock import (
     IN,
-    I2,
     a_op,
     a_dag_op,
-    aOmegab,
     dqdag,
     dqdisplace,
     dqtensor,
-    e_n1iaOmegab,
     sigma_x,
     sigma_y,
     sigma_z,
 )
+from coherax.states import JointKet
 
 import dynamiqs as dq
 
@@ -458,6 +460,118 @@ def channel_from_b(alphas: Array, betas: Array) -> Array:
         return ops_acc.at[j, :, :].set(sum_displacements(j))
 
     return jax.lax.fori_loop(0, alphas.shape[0], outer_body, ops)
+
+
+class CircuitUnitary(eqx.Module):
+    r"""Analytic CD+R circuit unitary in the coherent basis.
+
+    Represents the composed unitary:
+
+    .. math::
+
+        U = \sum_{\mu,\eta=0}^{1} |\mu\rangle\langle\eta|
+            \left(\sum_{k} c_{\mu\eta k}\, D(d_{\mu\eta k})\right)
+
+    where :math:`c_{\mu\eta k}` and :math:`d_{\mu\eta k}` are the ``alphas``
+    and ``betas`` outputs from :meth:`TraceoutLayer.from_params`.
+
+    Parameters
+    ----------
+    alphas : Array, shape ``(2, 2, N_l)``
+        Coherent-basis coefficients.
+    betas : Array, shape ``(2, 2, N_l)``
+        Displacement amplitudes.
+    """
+
+    alphas: Array
+    betas: Array
+
+    def __init__(self, alphas: Array, betas: Array) -> None:
+        self.alphas = jnp.asarray(alphas)
+        self.betas = jnp.asarray(betas)
+
+    @staticmethod
+    def from_params(circuit_params: Array, N_l: int) -> CircuitUnitary:
+        """Build from circuit parameters via :class:`TraceoutLayer`.
+
+        Parameters
+        ----------
+        circuit_params : Array, shape ``(n_layers, 4)``
+        N_l : int
+            Coherent-term count.
+
+        Returns
+        -------
+        CircuitUnitary
+        """
+        tl = TraceoutLayer.from_params(circuit_params, N_l)
+        return CircuitUnitary(alphas=tl.alphas, betas=tl.betas)
+
+    def apply(self, boson, qubit):
+        r"""Apply the circuit unitary to a product state.
+
+        .. math::
+
+            U\bigl(|\psi\rangle|\phi\rangle\bigr)
+            = \sum_{\mu} |\mu\rangle
+              \sum_{\eta} q_\eta
+              \sum_{k} c_{\mu\eta k}
+              \sum_{a} c_a\,
+              e^{i\,\omega(d_a,\, d_{\mu\eta k})}\,
+              |d_a + d_{\mu\eta k}\rangle
+
+        Parameters
+        ----------
+        boson : CoherentKet
+            Bosonic input state.
+        qubit : QubitKet
+            Qubit input state.
+
+        Returns
+        -------
+        JointKet
+            Output state in the joint bosonic-qubit space.
+        """
+        A = boson.cs.shape[0]
+        N_l = self.alphas.shape[2]
+
+        # qubit coefficients: q_eta for eta in {0, 1}
+        q = qubit.cs  # shape (2,)
+
+        # For each mu, combine over eta, k, a
+        # Total coherent terms per mu: 2 * N_l * A
+        out_cs_list = []
+        out_ds_list = []
+        for mu in range(2):
+            cs_mu = []
+            ds_mu = []
+            for eta in range(2):
+                # c_{mu,eta,k} and d_{mu,eta,k}
+                c_mek = self.alphas[mu, eta, :]  # (N_l,)
+                d_mek = self.betas[mu, eta, :]   # (N_l,)
+
+                # Broadcast: k index (N_l,1) x a index (1,A)
+                d_k = d_mek.reshape(-1, 1)       # (N_l, 1)
+                d_a = boson.ds.reshape(1, -1)     # (1, A)
+                c_k = c_mek.reshape(-1, 1)        # (N_l, 1)
+                c_a = boson.cs.reshape(1, -1)     # (1, A)
+
+                # braiding phase: e^{i omega(d_a, d_k)}
+                phase = jnp.exp(1j * aOmegab(d_a, d_k))
+
+                coeffs = q[eta] * c_k * c_a * phase  # (N_l, A)
+                disps = d_a + d_k                      # (N_l, A)
+
+                cs_mu.append(coeffs.ravel())
+                ds_mu.append(disps.ravel())
+
+            out_cs_list.append(jnp.concatenate(cs_mu))
+            out_ds_list.append(jnp.concatenate(ds_mu))
+
+        out_cs = jnp.stack(out_cs_list)  # (2, 2*N_l*A)
+        out_ds = jnp.stack(out_ds_list)  # (2, 2*N_l*A)
+
+        return JointKet(cs=out_cs, ds=out_ds)
 
 
 @partial(jax.jit, static_argnums=(1, 2))
