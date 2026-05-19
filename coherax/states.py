@@ -15,6 +15,7 @@ basis-defined operators :class:`CoherentCoherentOp`, :class:`FockFockOp`,
 from __future__ import annotations
 
 from functools import partial
+from typing import Sequence
 
 import equinox as eqx
 import jax
@@ -27,7 +28,7 @@ from coherax.linalg_utils import (
     aOmegab,
     coherent_overlap,
     dag,
-    sparse_eigh,
+    invsqrtm_supp,
 )
 from coherax._fock import dqcoherent
 
@@ -1768,7 +1769,12 @@ class BosonicSubspace(eqx.Module):
     Given a set of displacements :math:`\{d_i\}`, constructs the
     Gram matrix :math:`G_{ij} = \langle d_i | d_j \rangle` and
     change-of-basis matrices between the (overcomplete) coherent basis
-    and an orthonormal basis obtained via eigendecomposition.
+    and an orthonormal basis obtained from the eigendecomposition of
+    :math:`G`. Eigenvalues at or below ``eps`` are masked out, so
+    rank-deficient :math:`G` does not produce ``inf`` / ``nan`` --
+    the corresponding columns of :attr:`T` and rows of :attr:`Tp` are
+    zero instead. All shapes stay static at :math:`A`, so a
+    :class:`BosonicSubspace` can be built inside ``jax.jit``.
 
     Parameters
     ----------
@@ -1788,39 +1794,48 @@ class BosonicSubspace(eqx.Module):
     def __init__(self, ds: Array, eps: float = 1e-6) -> None:
         A = ds.shape[0]
         G = coherent_overlap(ds.reshape((A, 1)), ds.reshape((1, A)))
-        lambda_G, U_G = sparse_eigh(G, eps)
-        self.T = U_G @ jnp.diag(lambda_G**-0.5)
-        self.Tp = jnp.diag(lambda_G**0.5) @ dag(U_G)
+        lambda_G, U_G = jnp.linalg.eigh(G)
         self.ds = ds
         self.G = G
         self.lambda_G = lambda_G
         self.U_G = U_G
+        # Static-shape (A, A) versions of the original eigenvalue-basis
+        # transforms: rows / columns corresponding to eigenvalues at or
+        # below ``eps`` are zeroed out instead of being dropped. Active
+        # rank is K = (lambda_G > eps).sum().
+        w_real = jnp.real(lambda_G)
+        inv_sqrt = jnp.where(w_real > eps, w_real ** -0.5, 0.0)
+        sqrt_w = jnp.where(w_real > eps, w_real ** 0.5, 0.0)
+        self.T = U_G * inv_sqrt[None, :]   # U_G @ diag(inv_sqrt), shape (A, A)
+        self.Tp = sqrt_w[:, None] * dag(U_G)  # diag(sqrt) @ dag(U_G), shape (A, A)
 
     def op_c2o_transform(self, Op: Array) -> Array:
         """Transform an operator from the coherent basis to the orthonormal basis.
 
         Parameters
         ----------
-        O : Array, shape ``(A, A)``
+        Op : Array, shape ``(A, A)``
 
         Returns
         -------
-        Array, shape ``(K, K)``
+        Array, shape ``(A, A)``
+            Orthonormal-basis matrix elements; components in the
+            null-eigenvalue subspace of :math:`G` are zero.
         """
         return jnp.einsum("ia,ab,jb->ij", self.Tp, Op, jnp.conj(self.Tp))
 
-    def op_o2c_transform(self, O: Array) -> Array:
+    def op_o2c_transform(self, Op: Array) -> Array:
         """Transform an operator from the orthonormal basis to the coherent basis.
 
         Parameters
         ----------
-        O : Array, shape ``(K, K)``
+        Op : Array, shape ``(A, A)``
 
         Returns
         -------
         Array, shape ``(A, A)``
         """
-        return jnp.einsum("ai,ij,bj->ab", self.T, O, jnp.conj(self.T))
+        return jnp.einsum("ai,ij,bj->ab", self.T, Op, jnp.conj(self.T))
 
     def ket_c2o_transform(self, ket: Array) -> Array:
         """Transform a ket from the coherent basis to the orthonormal basis.
@@ -1835,7 +1850,9 @@ class BosonicSubspace(eqx.Module):
 
         Returns
         -------
-        Array, shape ``(K,)``
+        Array, shape ``(A,)``
+            Orthonormal-basis components; null-eigenvalue components are
+            zero.
         """
         return jnp.einsum("ia,a->i", self.Tp, ket)
 
@@ -1844,7 +1861,7 @@ class BosonicSubspace(eqx.Module):
 
         Parameters
         ----------
-        ket : Array, shape ``(K,)``
+        ket : Array, shape ``(A,)``
 
         Returns
         -------
@@ -1950,3 +1967,266 @@ class BosonicSubspace(eqx.Module):
             :class:`CoherentKet` construction.
         """
         return CoherentKet(cs=self.ket_o2c_transform(coeffs), ds=self.ds)
+
+
+# ---------------------------------------------------------------------------
+# Beamsplitter channel on a logical encoding
+#
+# Given a logical encoding |psi_mu> = sum_a alpha_{mu, a} |beta_a> (a length-D
+# stack of CoherentKets that share a single displacement vector `beta`), and
+# an environment ket |env> = sum_j Y_j |sigma_j>, the beamsplitter with
+# transmissivity eta acts as
+#
+#   U_BS (|beta_a> |sigma_j>) = |sqrt(eta) beta_a + sqrt(1-eta) sigma_j>_S
+#                            otimes |sqrt(eta) sigma_j - sqrt(1-eta) beta_a>_E
+#
+# Tracing out the environment yields, for each (mu, nu) pair of logical
+# states, a coherent-basis density-matrix block with displacements
+# d_out_{a,j} = sqrt(eta) beta_a + sqrt(1-eta) sigma_j (shared across mu, nu)
+# and coefficient matrix
+#
+#   C^{(mu nu)}_{(a,j),(b,k)} = alpha_{mu, a} conj(alpha_{nu, b})
+#                                 * Y_j conj(Y_k)
+#                                 * <d_mix_b,k | d_mix_a,j>
+#
+# where d_mix_{a,j} = sqrt(eta) sigma_j - sqrt(1-eta) beta_a is the
+# environment-side displacement.
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def _beamsplit_full_arrays(
+    alpha: Array,
+    beta: Array,
+    Y: Array,
+    sigma: Array,
+    eta: Array,
+) -> tuple[Array, Array]:
+    r"""Raw-array kernel for :func:`beamsplit_full`.
+
+    All array indices are explicit so this function jit-cleanly. ``Y`` is
+    normalized inside the kernel so callers do not have to pre-normalize
+    the environment-mode coefficients.
+
+    Parameters
+    ----------
+    alpha : Array, shape ``(D, A)``
+        Coefficients of the encoded logical states in the (shared)
+        coherent basis :math:`\{|\beta_a\rangle\}`.
+    beta : Array, shape ``(A,)``
+        Coherent-state displacements of the encoder output basis.
+    Y : Array, shape ``(N_E,)``
+        Environment-mode coefficients (pre-normalization).
+    sigma : Array, shape ``(N_E,)``
+        Environment-mode coherent displacements.
+    eta : float or Array
+        Beamsplitter transmissivity in :math:`[0, 1]`. Pure-loss
+        channels use :math:`\eta = 1 - \gamma`.
+
+    Returns
+    -------
+    rho_out : Array, shape ``(D, D, A * N_E, A * N_E)``
+        Choi-like tensor: ``rho_out[mu, nu]`` is the unnormalized
+        coherent-basis density-matrix block of
+        :math:`\mathcal{E}(|\mu_L\rangle\!\langle\nu_L|)` with
+        displacements ``d_out``.
+    d_out : Array, shape ``(A * N_E,)``
+        Output coherent-state displacements.
+    """
+    D, A = alpha.shape
+    N_E = sigma.shape[0]
+    beta_col = beta.reshape((A, 1))
+    sigma_row = sigma.reshape((1, N_E))
+
+    # Normalize Y in the environment's coherent overlap metric.
+    G_env = coherent_overlap(sigma.reshape((N_E, 1)), sigma.reshape((1, N_E)))
+    gamma = Y / jnp.sqrt(jnp.einsum("i,ij,j->", jnp.conj(Y), G_env, Y))
+
+    d_out = jnp.sqrt(eta) * beta_col + jnp.sqrt(1.0 - eta) * sigma_row   # (A, N_E)
+    d_mix = jnp.sqrt(eta) * sigma_row - jnp.sqrt(1.0 - eta) * beta_col   # (A, N_E)
+
+    # Pairwise environment-side overlaps: G_mix[a, j, b, k] = <d_mix[b,k] | d_mix[a,j]>
+    d_aj = d_mix.reshape((A, 1, N_E, 1))
+    d_bk = d_mix.reshape((1, A, 1, N_E))
+    G_mix = coherent_overlap(d_bk, d_aj)  # (A, A, N_E, N_E)
+
+    rho_out = (
+        G_mix.reshape((1, 1, A, A, N_E, N_E))
+        * alpha.reshape((D, 1, A, 1, 1, 1))
+        * jnp.conj(alpha).reshape((1, D, 1, A, 1, 1))
+        * gamma.reshape((1, 1, 1, 1, N_E, 1))
+        * jnp.conj(gamma).reshape((1, 1, 1, 1, 1, N_E))
+    )
+    # Reorder (D, D, A, A, N_E, N_E) -> (D, D, A*N_E, A*N_E)
+    rho_out = jnp.transpose(rho_out, (0, 1, 2, 4, 3, 5)).reshape(
+        D, D, A * N_E, A * N_E
+    )
+    return rho_out, d_out.reshape((A * N_E,))
+
+
+def beamsplit_full(
+    logical_kets: Sequence[CoherentKet],
+    env: CoherentKet,
+    eta: float | Array,
+) -> tuple[Array, Array]:
+    r"""Apply a beamsplitter to a logical encoding and trace out the environment.
+
+    The encoder is described by a length-:math:`D` sequence of
+    :class:`CoherentKet`\ s ``logical_kets[mu]`` :math:`= \sum_a
+    \alpha_{\mu a}|\beta_a\rangle` that **must share a common
+    displacement vector** :math:`\{\beta_a\}`. The environment is a
+    single coherent-state superposition ``env`` :math:`= \sum_j Y_j
+    |\sigma_j\rangle`.
+
+    The beamsplitter mixes system and environment with transmissivity
+    :math:`\eta`; pure photon loss with rate :math:`\gamma` is the
+    special case of vacuum environment (``env = CoherentKet([1], [0])``)
+    and :math:`\eta = 1 - \gamma`.
+
+    Parameters
+    ----------
+    logical_kets : Sequence[CoherentKet]
+        Length-:math:`D` encoding. Each ket's ``ds`` must equal
+        ``logical_kets[0].ds``.
+    env : CoherentKet
+        Environment-mode initial state.
+    eta : float or Array
+        Beamsplitter transmissivity.
+
+    Returns
+    -------
+    rho_out : Array, shape ``(D, D, A * N_E, A * N_E)``
+        Choi-like tensor describing
+        :math:`\mathcal{E}(|\mu_L\rangle\!\langle\nu_L|)` in the output
+        coherent basis.
+    d_out : Array, shape ``(A * N_E,)``
+        Output coherent-state displacements,
+        :math:`d_{aj} = \sqrt{\eta}\,\beta_a + \sqrt{1-\eta}\,\sigma_j`.
+
+    Raises
+    ------
+    ValueError
+        If the logical kets do not share a common displacement vector
+        (checked at Python time; not inside ``jax.jit``).
+
+    Notes
+    -----
+    For the optimizer hot path, call :func:`_beamsplit_full_arrays`
+    directly with raw arrays instead of constructing
+    :class:`CoherentKet`\ s every step.
+    """
+    if len(logical_kets) == 0:
+        raise ValueError("logical_kets must contain at least one CoherentKet")
+    beta = logical_kets[0].ds
+    for k, lk in enumerate(logical_kets[1:], start=1):
+        if lk.ds.shape != beta.shape:
+            raise ValueError(
+                f"logical_kets[{k}].ds has shape {lk.ds.shape} but expected {beta.shape}"
+            )
+    alpha = jnp.stack([lk.cs for lk in logical_kets])  # (D, A)
+    return _beamsplit_full_arrays(alpha, beta, env.cs, env.ds, jnp.asarray(eta))
+
+
+# ---------------------------------------------------------------------------
+# Floating-basis logical encoder
+#
+# Parametrize an isometric encoder D -> A of a logical D-dim Hilbert space into
+# a coherent-state superposition basis by an unconstrained matrix X: (A, D)
+# and a displacement vector d: (A,). The algebraic isometry construction
+#
+#     C = G^{-1/2}|_supp  X  (X^dagger X)^{-1/2}|_supp,   G_{ab} = <d_a|d_b>
+#
+# guarantees C^dagger G C = I_D (the encoded logical states are orthonormal),
+# so the parametrization is unconstrained and well-suited to gradient
+# optimization.
+# ---------------------------------------------------------------------------
+
+
+@jax.jit
+def unitary_encoding_map(X: Array, d: Array, psi_logical: Array) -> Array:
+    r"""Apply the floating-basis isometric encoder to a logical ket.
+
+    For a logical state :math:`|\psi_L\rangle = \sum_\mu \psi_\mu
+    |\mu\rangle` in a :math:`D`-dimensional logical space, returns the
+    coherent-basis coefficient vector
+
+    .. math::
+
+        c_a = \sum_\mu C_{a\mu}\,\psi_\mu,
+        \quad
+        C = G^{-1/2}|_{\mathrm{supp}}\,X\,(X^\dagger X)^{-1/2}|_{\mathrm{supp}}
+
+    so that :math:`C^\dagger G C = I_D` exactly. The encoded logical state
+    is :math:`\sum_a c_a |d_a\rangle`; wrap with
+    :func:`encode_logical_ket` to get a :class:`CoherentKet`.
+
+    Parameters
+    ----------
+    X : Array, shape ``(A, D)``
+        Unconstrained complex parameter matrix.
+    d : Array, shape ``(A,)``
+        Coherent-basis displacements.
+    psi_logical : Array, shape ``(..., D)``
+        Logical-basis amplitudes. Leading dims are broadcast.
+
+    Returns
+    -------
+    Array, shape ``(..., A)``
+        Coherent-basis coefficients :math:`c_a` of the encoded state(s).
+    """
+    A = d.shape[0]
+    G = coherent_overlap(d.reshape((A, 1)), d.reshape((1, A)))
+    Q = X @ invsqrtm_supp(dag(X) @ X)  # (A, D)
+    C = invsqrtm_supp(G) @ Q           # (A, D)
+    return jnp.einsum("...l,al->...a", psi_logical, C)
+
+
+def encode_logical_ket(X: Array, d: Array, mu: int = 0, D: int | None = None) -> CoherentKet:
+    r"""Build the encoded logical state :math:`|\psi_\mu\rangle` as a :class:`CoherentKet`.
+
+    Equivalent to ``CoherentKet(cs=unitary_encoding_map(X, d, e_mu), ds=d)``
+    where :math:`e_\mu` is the :math:`\mu`-th computational-basis vector
+    of the logical :math:`D`-dim space.
+
+    Parameters
+    ----------
+    X : Array, shape ``(A, D)``
+        Encoder parameter matrix.
+    d : Array, shape ``(A,)``
+        Coherent-basis displacements.
+    mu : int
+        Logical basis index to encode.
+    D : int or None
+        Logical dimension. Defaults to ``X.shape[1]``.
+
+    Returns
+    -------
+    CoherentKet
+        Encoded logical state. By construction this is unit-norm, so the
+        :class:`CoherentKet` constructor's normalization is a no-op.
+    """
+    if D is None:
+        D = int(X.shape[1])
+    psi_mu = jnp.zeros(D, dtype=jnp.complex128).at[mu].set(1.0)
+    return CoherentKet(cs=unitary_encoding_map(X, d, psi_mu), ds=d)
+
+
+def encode_logical_kets(X: Array, d: Array) -> list[CoherentKet]:
+    r"""Build all :math:`D` encoded logical states as a list of :class:`CoherentKet`\ s.
+
+    Convenience wrapper around :func:`encode_logical_ket`. All returned
+    kets share ``ds = d``, which is the precondition for passing them to
+    :func:`beamsplit_full`.
+
+    Parameters
+    ----------
+    X : Array, shape ``(A, D)``
+    d : Array, shape ``(A,)``
+
+    Returns
+    -------
+    list[CoherentKet]
+        Length ``D``; ``result[mu]`` is the encoded :math:`|\mu_L\rangle`.
+    """
+    D = int(X.shape[1])
+    return [encode_logical_ket(X, d, mu=mu, D=D) for mu in range(D)]

@@ -4,10 +4,9 @@ API Reference
 .. toctree::
    :maxdepth: 2
 
-   operators
+   linalg_utils
    states
    circuits
    fidelity
    gkp
-   info
    optimizers

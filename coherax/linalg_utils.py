@@ -7,8 +7,11 @@ dependency.
 
 from __future__ import annotations
 
+from typing import Sequence
+
 import jax
 import jax.numpy as jnp
+import jax.random as jr
 from jaxtyping import Array
 
 # ---------------------------------------------------------------------------
@@ -77,15 +80,64 @@ def coherent_overlap(alpha: Array, beta: Array) -> Array:
 
 
 # ---------------------------------------------------------------------------
+# Random initialization
+# ---------------------------------------------------------------------------
+
+
+def complex_normal(key: Array, shape: Sequence[int]) -> Array:
+    r"""Draw i.i.d. complex normals with unit variance.
+
+    Real and imaginary parts are independent normals with variance
+    :math:`1/2`, so :math:`\mathbb{E}[|z|^2] = 1`.
+
+    Parameters
+    ----------
+    key : jax.random.PRNGKey
+        Random key.
+    shape : Sequence[int]
+        Output array shape.
+
+    Returns
+    -------
+    Array, dtype ``complex64`` (matches the JAX default; pass a
+        ``complex128`` cast at the call site if double precision is
+        required).
+    """
+    kr, ki = jr.split(key, 2)
+    return (jr.normal(kr, shape) + 1.0j * jr.normal(ki, shape)) / jnp.sqrt(2.0)
+
+
+# ---------------------------------------------------------------------------
 # Linear-algebra helpers
 # ---------------------------------------------------------------------------
 
 
 @jax.jit
-def invsqrtm(A: Array) -> Array:
-    r"""Matrix inverse square root :math:`A^{-1/2}` via eigendecomposition."""
-    w, v = jnp.linalg.eigh(A)
-    return (v / jnp.sqrt(w)) @ dag(v)
+def invsqrtm_supp(A: Array, eps: float = 1e-6) -> Array:
+    r"""Support-restricted matrix inverse square root :math:`A^{-1/2}|_{\mathrm{supp}}`.
+
+    Eigenvalues below ``eps`` are treated as zero and projected out, so
+    rank-deficient :math:`A` produces a Moore--Penrose-style pseudoinverse
+    on its support rather than blowing up to ``inf`` / ``nan``. For
+    full-rank positive-definite :math:`A` with all eigenvalues above
+    ``eps``, this agrees with the plain inverse square root.
+
+    Parameters
+    ----------
+    A : Array, shape ``(N, N)``
+        Hermitian (assumed positive-semidefinite) matrix.
+    eps : float
+        Eigenvalue support cutoff.
+
+    Returns
+    -------
+    Array, shape ``(N, N)``
+    """
+    w, V = jnp.linalg.eigh(A)
+    w_real = jnp.real(w)
+    w_pos = jnp.maximum(w_real, eps)
+    s = jnp.where(w_real > eps, 1.0 / jnp.sqrt(w_pos), 0.0)
+    return V @ (s[:, None] * dag(V))
 
 
 def sparse_eigh(O: Array, eps: float = 1e-6) -> tuple[Array, Array]:

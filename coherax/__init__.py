@@ -15,9 +15,10 @@ from coherax.linalg_utils import (
     GKP_N,
     aOmegab,
     coherent_overlap,
+    complex_normal,
     dag,
     e_n1iaOmegab,
-    invsqrtm,
+    invsqrtm_supp,
     sparse_eigh,
     sparse_tensor_eigh,
 )
@@ -78,6 +79,10 @@ from coherax.states import (
     LogicalKet,
     QubitKet,
     Rotator,
+    beamsplit_full,
+    encode_logical_ket,
+    encode_logical_kets,
+    unitary_encoding_map,
 )
 
 from coherax.circuits import (
@@ -103,6 +108,9 @@ from coherax.circuits import (
 )
 
 from coherax.fidelity import (
+    coherent_information_pureloss,
+    entanglement_fidelity_pureloss,
+    nbar_logical,
     analytic_fidelity,
     analytic_fidelity_i,
     analytic_fidelity_transfer,
@@ -121,8 +129,12 @@ from coherax.gkp import (
 )
 
 from coherax.optimizers import (
+    init_separated_d,
     optimize_ECD_state_prep,
     optimize_ECD_state_transfer,
+    optimize_Fe_floating,
+    optimize_Ic_floating,
+    separation_penalty,
 )
 
 __all__ = [
@@ -144,8 +156,9 @@ __all__ = [
     "aOmegab",
     "e_n1iaOmegab",
     "coherent_overlap",
+    "complex_normal",
     "dag",
-    "invsqrtm",
+    "invsqrtm_supp",
     "sparse_eigh",
     "sparse_tensor_eigh",
     "dqtensor",
@@ -189,6 +202,10 @@ __all__ = [
     "LogicalKet",
     "JointKet",
     "BosonicSubspace",
+    "beamsplit_full",
+    "encode_logical_ket",
+    "encode_logical_kets",
+    "unitary_encoding_map",
     # circuits
     "W",
     "CD",
@@ -221,9 +238,16 @@ __all__ = [
     "state_fidelity",
     "circuit_state_fidelity",
     "circuit_fock_fidelity",
+    "coherent_information_pureloss",
+    "entanglement_fidelity_pureloss",
+    "nbar_logical",
     # gkp
     "gkp_coherent_dm",
     # optimizers
     "optimize_ECD_state_prep",
     "optimize_ECD_state_transfer",
+    "optimize_Fe_floating",
+    "optimize_Ic_floating",
+    "init_separated_d",
+    "separation_penalty",
 ]

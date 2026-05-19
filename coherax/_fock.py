@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from functools import partial
+from typing import TYPE_CHECKING
 
 import dynamiqs as dq
 import jax
@@ -30,6 +31,11 @@ import scipy.linalg as sla
 from jaxtyping import Array
 
 from coherax.linalg_utils import GKP_N, dag
+
+if TYPE_CHECKING:
+    # Runtime import would create a cycle: _fock -> states -> _fock (for
+    # dqcoherent). Only the type checker needs to see CoherentKet here.
+    from coherax.states import CoherentKet
 
 # ---------------------------------------------------------------------------
 # dynamiqs -> JAX wrappers
@@ -296,8 +302,8 @@ def make_pureloss_fock(gamma: float, rank: int, N: int = GKP_N) -> Array:
 
 def make_transpose_for_pureloss(
     loss_ops: Array,
-    logical_0: "CoherentKet",  # noqa: F821  (forward ref to avoid circular import)
-    logical_1: "CoherentKet",  # noqa: F821
+    logical_0: CoherentKet,
+    logical_1: CoherentKet,
     eps: float = 1e-5,
 ) -> Array:
     r"""Petz transpose (near-optimal) recovery channel for pure loss.

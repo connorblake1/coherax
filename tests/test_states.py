@@ -867,7 +867,6 @@ class TestJointKet:
         # JointKet.to_fock_ket must match the layout used by compose_ECD_layers
         # (the rest of the library's dqtensor(cavity, qubit) convention).
         import jax
-        from coherax.states import CoherentKet, QubitKet
         from coherax.circuits import CircuitUnitary, compose_ECD_layers
         from coherax._fock import dqcoherent
         from coherax.linalg_utils import GKP_N
