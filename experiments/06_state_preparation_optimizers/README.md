@@ -308,11 +308,12 @@ cluster restart shards are deliberately included in the cleanup.
 The [`cluster/`](cluster/) directory contains an Engaging Slurm job-array
 launcher for exactly 100 restarts per method and layer count (2,500
 optimizations). Each of the 100 hardware-matched workers runs all 25 cases as
-fresh processes on one allocation and writes atomic JSON/NPZ shards. Launch
-with at most 20 workers running at once using:
+fresh processes on one allocation and writes atomic JSON/NPZ shards. The
+workers run strictly sequentially, so at most one node and four CPU cores are
+active. Launch using:
 
 ```bash
-cluster/submit_cluster.sh 20
+cluster/submit_cluster.sh
 ```
 
 The dependent aggregation job selects each winner by exact analytic fidelity

@@ -7,10 +7,9 @@ cd "$experiment_dir"
 
 restart_count=100
 worker_count=100
-max_concurrent="${1:-20}"
 
-if ((max_concurrent < 1 || max_concurrent > 24)); then
-  echo "usage: $0 [maximum_concurrent_workers=1..24]" >&2
+if (( $# != 0 )); then
+  echo "usage: $0" >&2
   exit 2
 fi
 
@@ -33,7 +32,7 @@ for runtime_directory in "$cluster_dir/logs" "$cluster_dir/results"; do
     exit 2
   fi
 done
-array_spec="0-$((worker_count - 1))%$max_concurrent"
+array_spec="0-$((worker_count - 1))%1"
 array_job_id="$(
   sbatch --parsable \
     --array="$array_spec" \
@@ -52,4 +51,5 @@ aggregate_job_id="$(
 echo "restart array job: $array_job_id"
 echo "dependent aggregate job: $aggregate_job_id"
 echo "design: 100 matched workers x 25 cases = 2500 optimizations"
+echo "resource cap: one array task (one node, four CPU cores) at a time"
 echo "monitor with: squeue --me"

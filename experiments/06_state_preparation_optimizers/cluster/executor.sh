@@ -8,7 +8,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --constraint=high_l3
 #SBATCH --hint=nomultithread
-#SBATCH --array=0-99%20
+#SBATCH --array=0-99%1
 #SBATCH --output=cluster/logs/%x-%A-%a.out
 #SBATCH --error=cluster/logs/%x-%A-%a.err
 

@@ -9,19 +9,18 @@ pairs, for 2,500 independent optimizations:
 
 ```bash
 cd experiments/07_hex_gkp_state_preparation_optimizers
-cluster/submit_cluster.sh 20
+cluster/submit_cluster.sh
 ```
 
-The optional argument is `maximum_concurrent_workers` in the range 1--24; its
-default is 20. The
-100 array tasks correspond exactly to restart indices 0 through 99. Each task
+The launcher takes no arguments. The 100 array tasks correspond exactly to
+restart indices 0 through 99. Each task
 runs all 25 method/depth cases as fresh Python processes on one allocation.
 Thus every method/depth pair is timed on the same multiset of 100 allocated
 nodes. At a fixed depth and restart index, every method also receives the same
 deterministic initial circuit. The 25-case execution order is rotated by
-restart index, so every case
-occupies every order position four times. The `%20` cap and four CPUs per task
-request at most 80 CPU cores at once.
+restart index, so every case occupies every order position four times. The
+`%1` array cap makes the 100 workers run strictly sequentially. At most one
+node, one Slurm task, and four CPU cores are active at a time.
 
 Before submission, create or copy the repository on Engaging and make sure the
 `coherax` Conda environment contains the repository dependencies. One initial
@@ -38,7 +37,7 @@ To use an already-created environment with a different name:
 
 ```bash
 export COHERAX_CONDA_ENV=my_environment
-cluster/submit_cluster.sh 20
+cluster/submit_cluster.sh
 ```
 
 `executor.sh` uses the CPU-only `mit_normal` partition, four CPUs, 8 GB per
