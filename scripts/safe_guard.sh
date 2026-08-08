@@ -38,9 +38,18 @@ while kill -0 "$child_pid" 2>/dev/null; do
     exit 124
   fi
 
-  descendant_pids="$(pgrep -P "$child_pid" 2>/dev/null || true)"
-  process_ids="$child_pid ${descendant_pids}"
-  rss_kb="$(ps -o rss= -p ${process_ids// /,} 2>/dev/null | awk '{sum += $1} END {print sum+0}')"
+  # Read the child and its direct descendants from one process-table snapshot.
+  # The monitored command can exit between kill -0 above and this probe.  In
+  # that normal race, ps may return nonzero; do not let `set -o pipefail`
+  # convert a successfully completed command into a silent watchdog failure.
+  rss_kb="$(
+    ps -eo pid=,ppid=,rss= 2>/dev/null |
+      awk -v child_pid="$child_pid" '
+        $1 == child_pid || $2 == child_pid { sum += $3 }
+        END { print sum + 0 }
+      ' || true
+  )"
+  rss_kb="${rss_kb:-0}"
   if (( rss_kb > memory_kb )); then
     echo "safe_guard: RSS limit (${memory_gb} GiB) exceeded" >&2
     terminate_tree
