@@ -6,7 +6,6 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=8G
 #SBATCH --time=12:00:00
-#SBATCH --constraint=high_l3
 #SBATCH --hint=nomultithread
 #SBATCH --array=0-99%1
 #SBATCH --output=cluster/logs/%x-%A-%a.out
@@ -27,7 +26,6 @@ conda activate "${COHERAX_CONDA_ENV:-coherax}"
 export PYTHONPATH="$repo_root${PYTHONPATH:+:$PYTHONPATH}"
 export JAX_PLATFORMS=cpu
 export JAX_ENABLE_X64=true
-export COHERAX_HARDWARE_CONSTRAINT=high_l3
 export OMP_NUM_THREADS="${SLURM_CPUS_PER_TASK:-4}"
 export MKL_NUM_THREADS="$OMP_NUM_THREADS"
 export OPENBLAS_NUM_THREADS="$OMP_NUM_THREADS"

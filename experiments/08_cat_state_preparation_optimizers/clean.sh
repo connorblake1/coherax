@@ -36,6 +36,7 @@ generated_files=(
   "$experiment_dir/cluster/aggregate_results.json"
   "$experiment_dir/cluster/aggregate_summary.csv"
   "$experiment_dir/cluster/aggregate_best_sequences.npz"
+  "$experiment_dir/cluster/hardware_summary.csv"
   "$experiment_dir/figs/"*.png
   "$experiment_dir/figs/"*.pdf
   "$experiment_dir/sequences/"*.json

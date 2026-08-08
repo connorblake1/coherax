@@ -1,4 +1,4 @@
-# MIT Engaging parallel restarts
+# MIT Engaging restart sweep
 
 These scripts run each `(method, depth, restart)` optimization independently
 on the Engaging Slurm scheduler, then select winners by cutoff-free exact
@@ -41,9 +41,9 @@ cluster/submit_cluster.sh
 ```
 
 `executor.sh` uses the CPU-only `mit_normal` partition, four CPUs, 8 GB per
-array task, and a twelve-hour task limit. It requests the Engaging `high_l3`
-constraint so all timing tasks use the same documented AMD EPYC 9384X CPU
-model. Thread counts, CPU-only JAX, float64 mode, environment, memory, and CPU
+array task, and a twelve-hour task limit. It does not constrain the node or CPU
+model, allowing Slurm to use any suitable CPU node. Thread counts, CPU-only
+JAX, float64 mode, environment, memory, and CPU
 requests are identical for every case, and simultaneous multithreading is
 disabled for the allocation. Each optimizer is launched as a core-bound
 four-CPU Slurm job step. `executor_aggregate.sh` is submitted automatically
@@ -52,21 +52,22 @@ Restart shards are atomic and resumable: resubmitting skips completed JSON/NPZ
 pairs. Delete a specific pair or pass `--force` directly to
 `_cluster_restart.py` only when that restart really should be recomputed.
 
-The aggregator writes `aggregate_results.json`, `aggregate_summary.csv`, and
-`aggregate_best_sequences.npz` in this directory. It also publishes the
+The aggregator writes `aggregate_results.json`, `aggregate_summary.csv`,
+`hardware_summary.csv`, and `aggregate_best_sequences.npz` in this directory.
+It also publishes the
 winning sequences, canonical `results.json`, plots, and Wigner plate. In a
-parallel run, the plotted multirestart time is the **sum of independent
+sequential run, the plotted multirestart time is the **sum of independent
 restart wall times**, not the scheduler latency between submission and final
-completion; this distinction is recorded in the JSON. Before publishing, the
-aggregator verifies that every restart ran all 25 cases on one physical node
-and that all 100 workers report the same CPU, resource, and numerical-software
-signature. It fails
-loudly instead of publishing a hardware-mismatched timing comparison.
+completion; this distinction is recorded in the JSON. Every restart shard
+records its node, CPU model, allocation, thread settings, operating system,
+and numerical-software versions. The aggregator groups restart blocks by this
+signature instead of requiring all 100 blocks to use the same hardware.
 
 The matching guarantee applies to the measured optimizer processes, not to
 queue wait or aggregation time. If a partially completed restart is resumed
-on another node, the hardware validator will reject it; rerun all 25 shards
-for that restart as one block.
+on another node, the aggregator records that restart as a within-block
+hardware mismatch rather than silently treating it as matched. Use
+`hardware_summary.csv` to stratify wall-time comparisons by CPU model or node.
 
 Useful Engaging commands:
 

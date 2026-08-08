@@ -257,5 +257,5 @@ cluster/submit_cluster.sh
 
 The dependent aggregation job selects each winner by exact analytic fidelity
 and regenerates the experiment artifacts. See [`cluster/README.md`](cluster/README.md)
-for the homogeneous CPU constraint, matched timing design, validation,
-environment setup, monitoring, and safe resumption.
+for the matched-block timing design, per-restart hardware records, post-hoc
+hardware grouping, environment setup, monitoring, and safe resumption.

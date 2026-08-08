@@ -62,6 +62,7 @@ for method_name in experiment.METHOD_NAMES:
             continue
         winner = max(restart_records, key=lambda item: item["exact_fidelity"])
         winner_parameters = parameter_arrays[winner["restart"]]
+        winning_hardware = winner.get("hardware", {})
         winning_parameters[(method_name, layer_count)] = winner_parameters
         records.append(
             {
@@ -75,6 +76,9 @@ for method_name in experiment.METHOD_NAMES:
                 ),
                 "winning_restart": winner["restart"],
                 "winning_restart_wall_seconds": winner["total_wall_seconds"],
+                "winning_node": winning_hardware.get("node"),
+                "winning_cpu_model": winning_hardware.get("cpu_model"),
+                "winning_hardware": winning_hardware,
                 "native_fidelity": winner["native_fidelity"],
                 "exact_fidelity": winner["exact_fidelity"],
                 "exact_infidelity": winner["exact_infidelity"],
@@ -85,9 +89,9 @@ for method_name in experiment.METHOD_NAMES:
                     "eickbusch_lower_bound_microseconds"
                 ],
                 "restarts": restart_records,
-                "cluster_parallel": True,
+                "cluster_parallel": False,
                 "wall_time_definition": (
-                    "sum of independent restart wall times; tasks ran in parallel"
+                    "sum of independent restart wall times; array tasks ran sequentially"
                 ),
             }
         )
@@ -98,9 +102,9 @@ if missing_shards:
         f"Missing {len(missing_shards)} restart shards. First missing: {preview}"
     )
 
-# Fair timing requires a matched design. Array task r runs all 25 cases for
-# restart r on one allocation. Every restart must use one physical node, and
-# all 100 allocations must report the same resource/CPU signature.
+# Array task r normally runs all 25 cases for restart r on one allocation.
+# Different restart blocks may use different node and CPU models. Record that
+# heterogeneity explicitly so timings can be stratified after the run.
 resource_fields = (
     "cpu_model",
     "partition",
@@ -117,8 +121,12 @@ resource_fields = (
     "jax_version",
     "dynamiqs_version",
     "conda_environment",
+    "machine_architecture",
+    "operating_system",
 )
 hardware_by_restart = {}
+hardware_groups_by_signature = {}
+within_restart_hardware_mismatches = []
 for restart_index in range(arguments.restart_count):
     matched = [
         item for item in all_restart_records
@@ -129,33 +137,82 @@ for restart_index in range(arguments.restart_count):
             f"Restart {restart_index} has {len(matched)} records, expected 25"
         )
     nodes = {item.get("hardware", {}).get("node") for item in matched}
-    if len(nodes) != 1 or None in nodes:
-        raise ValueError(
-            f"Restart {restart_index} did not run all 25 cases on one node: {nodes}"
-        )
     signatures = {
         tuple(item.get("hardware", {}).get(field) for field in resource_fields)
         for item in matched
     }
-    if len(signatures) != 1:
-        raise ValueError(
-            f"Restart {restart_index} used inconsistent hardware resources"
-        )
-    hardware_by_restart[restart_index] = {
-        "node": next(iter(nodes)),
-        **dict(zip(resource_fields, next(iter(signatures)))),
+    slurm_job_ids = {
+        item.get("slurm", {}).get("job_id") for item in matched
     }
-
-cross_restart_signatures = {
-    tuple(record[field] for field in resource_fields)
-    for record in hardware_by_restart.values()
-}
-if len(cross_restart_signatures) != 1:
-    raise ValueError(
-        "The 100 restart allocations did not use one common CPU/resource signature"
+    slurm_array_job_ids = {
+        item.get("slurm", {}).get("array_job_id") for item in matched
+    }
+    slurm_array_task_ids = {
+        item.get("slurm", {}).get("array_task_id") for item in matched
+    }
+    matched_single_hardware = (
+        len(nodes) == 1
+        and None not in nodes
+        and len(signatures) == 1
     )
-common_hardware = dict(
-    zip(resource_fields, next(iter(cross_restart_signatures)))
+    restart_hardware = {
+        "matched_single_hardware": matched_single_hardware,
+        "nodes": sorted(str(node) for node in nodes),
+        "slurm_job_ids": sorted(str(job_id) for job_id in slurm_job_ids),
+        "slurm_array_job_ids": sorted(
+            str(job_id) for job_id in slurm_array_job_ids
+        ),
+        "slurm_array_task_ids": sorted(
+            str(task_id) for task_id in slurm_array_task_ids
+        ),
+        "resource_signatures": [
+            dict(zip(resource_fields, signature))
+            for signature in sorted(signatures, key=repr)
+        ],
+    }
+    if matched_single_hardware:
+        node = next(iter(nodes))
+        signature = next(iter(signatures))
+        signature_record = dict(zip(resource_fields, signature))
+        restart_hardware.update({"node": node, **signature_record})
+        group = hardware_groups_by_signature.setdefault(
+            signature,
+            {
+                "signature": signature_record,
+                "restart_indices": [],
+                "nodes": set(),
+            },
+        )
+        group["restart_indices"].append(restart_index)
+        group["nodes"].add(node)
+    else:
+        within_restart_hardware_mismatches.append(restart_index)
+    hardware_by_restart[restart_index] = restart_hardware
+
+hardware_groups = []
+for group in hardware_groups_by_signature.values():
+    hardware_groups.append(
+        {
+            "restart_count": len(group["restart_indices"]),
+            "restart_indices": group["restart_indices"],
+            "nodes": sorted(group["nodes"]),
+            "signature": group["signature"],
+        }
+    )
+hardware_groups.sort(
+    key=lambda group: (
+        str(group["signature"].get("cpu_model")),
+        group["restart_indices"][0],
+    )
+)
+within_restart_hardware_matched = not within_restart_hardware_mismatches
+hardware_homogeneous_across_restarts = (
+    within_restart_hardware_matched and len(hardware_groups) == 1
+)
+common_hardware = (
+    hardware_groups[0]["signature"]
+    if hardware_homogeneous_across_restarts
+    else None
 )
 
 aggregate = {
@@ -163,7 +220,7 @@ aggregate = {
     "restart_count": arguments.restart_count,
     "record_count": len(records),
     "wall_time_definition": (
-        "sum of independent restart wall times; Slurm tasks ran in parallel"
+        "sum of independent restart wall times; Slurm array tasks ran sequentially"
     ),
     "timing_fairness": {
         "design": (
@@ -172,10 +229,23 @@ aggregate = {
         ),
         "common_hardware": common_hardware,
         "hardware_by_restart": hardware_by_restart,
+        "hardware_groups": hardware_groups,
+        "hardware_group_count": len(hardware_groups),
+        "hardware_homogeneous_across_restarts": (
+            hardware_homogeneous_across_restarts
+        ),
+        "within_restart_hardware_matched": within_restart_hardware_matched,
+        "within_restart_hardware_mismatches": (
+            within_restart_hardware_mismatches
+        ),
         "execution_order": (
             "the 25-case order was cyclically rotated by restart modulo 25"
         ),
-        "validated": True,
+        "post_hoc_comparison": (
+            "use hardware_summary.csv or each restart record's hardware object "
+            "to group wall times by CPU model, node, and software environment"
+        ),
+        "validated": within_restart_hardware_matched,
     },
     "records": records,
 }
@@ -198,6 +268,8 @@ with (CLUSTER_DIRECTORY / "aggregate_summary.csv").open(
             "method",
             "layers",
             "winning_restart",
+            "winning_node",
+            "winning_cpu_model",
             "exact_fidelity",
             "exact_infidelity",
             "native_fidelity",
@@ -207,6 +279,54 @@ with (CLUSTER_DIRECTORY / "aggregate_summary.csv").open(
     writer.writeheader()
     for record in records:
         writer.writerow({name: record[name] for name in writer.fieldnames})
+
+with (CLUSTER_DIRECTORY / "hardware_summary.csv").open(
+    "w", encoding="utf-8", newline=""
+) as hardware_summary_file:
+    hardware_writer = csv.DictWriter(
+        hardware_summary_file,
+        fieldnames=(
+            "restart",
+            "matched_single_hardware",
+            "nodes",
+            "slurm_job_ids",
+            "slurm_array_job_ids",
+            "slurm_array_task_ids",
+            *resource_fields,
+        ),
+    )
+    hardware_writer.writeheader()
+    for restart_index, restart_hardware in hardware_by_restart.items():
+        signatures = restart_hardware["resource_signatures"]
+        hardware_writer.writerow(
+            {
+                "restart": restart_index,
+                "matched_single_hardware": restart_hardware[
+                    "matched_single_hardware"
+                ],
+                "nodes": ";".join(restart_hardware["nodes"]),
+                "slurm_job_ids": ";".join(
+                    restart_hardware["slurm_job_ids"]
+                ),
+                "slurm_array_job_ids": ";".join(
+                    restart_hardware["slurm_array_job_ids"]
+                ),
+                "slurm_array_task_ids": ";".join(
+                    restart_hardware["slurm_array_task_ids"]
+                ),
+                **{
+                    field: ";".join(
+                        sorted(
+                            {
+                                str(signature.get(field))
+                                for signature in signatures
+                            }
+                        )
+                    )
+                    for field in resource_fields
+                },
+            }
+        )
 
 if arguments.publish:
     for record in records:
@@ -234,13 +354,13 @@ if arguments.publish:
     results_path = EXPERIMENT_DIRECTORY / "results.json"
     with results_path.open(encoding="utf-8") as results_file:
         published = json.load(results_file)
-    published["configuration"]["cluster_parallel"] = True
+    published["configuration"]["cluster_parallel"] = False
     published["configuration"]["cluster_restart_count"] = arguments.restart_count
     published["configuration"]["cluster_timing_fairness"] = aggregate[
         "timing_fairness"
     ]
     published["timing_definitions"]["optimization_wall_time"] = (
-        "sum of independent restart wall times; Slurm tasks ran in parallel"
+        "sum of independent restart wall times; Slurm array tasks ran sequentially"
     )
     with results_path.open("w", encoding="utf-8") as results_file:
         json.dump(published, results_file, indent=2)

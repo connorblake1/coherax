@@ -61,6 +61,8 @@ def hardware_record() -> dict[str, str | None]:
         "jax_version": experiment.jax.__version__,
         "dynamiqs_version": getattr(experiment.dq, "__version__", "unknown"),
         "conda_environment": os.environ.get("CONDA_DEFAULT_ENV"),
+        "machine_architecture": platform.machine(),
+        "operating_system": platform.platform(),
     }
 
 
