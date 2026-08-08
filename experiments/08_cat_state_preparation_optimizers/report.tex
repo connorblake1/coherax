@@ -1,0 +1,122 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.50in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,float,microtype}
+\usepackage[T1]{fontenc}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\newcommand{\ket}[1]{\lvert #1\rangle}
+\newcommand{\bra}[1]{\langle #1\rvert}
+\begin{document}
+\begin{center}
+{\Large\bfseries Experiment 08: even cat-state preparation}\\[-1pt]
+{\small Five state representations, exact common scoring, and saved circuits}
+\end{center}
+
+\textbf{Target and circuit.}
+We optimize an echoed conditional displacement (ECD) circuit for
+\[
+\ket{C_+(2)}=\frac{\ket{-2}+\ket2}{\sqrt{2+2e^{-8}}}.
+\]
+Here \(\ket z\) is a coherent state at phase-space point \(z\), and
+\(\langle-2|2\rangle=e^{-8}\). The target is therefore exactly normalized;
+its mean photon number is \(4\tanh4\simeq3.9973\). Every circuit starts from
+\(\ket0_q\ket0_o\). Depth \(n\in\{4,8,12,16,20\}\) means \(n\)
+ECD-plus-qubit-rotation layers. A row is
+\([\Re\beta,\Im\beta,\phi,\theta,\gamma=0]\), with branch displacements
+\(-\beta/2\) and \(+\beta/2\).
+
+Every method uses the same three starts at fixed depth and 10,000 Adam updates
+per start. Adam is an adaptive gradient optimizer. The requested initialization
+is \(\beta\sim\mathcal{CN}(0,0.5)\), meaning
+\(\Re\beta,\Im\beta\stackrel{\rm iid}{\sim}\mathcal N(0,0.25)\), and
+\(\phi,\theta\stackrel{\rm iid}{\sim}U[0,2\pi]\). ``iid'' means independent
+and identically distributed.
+
+\textbf{Methods.}
+Full coherent paths keeps all \(2^n\) analytic paths. Analytic Fock carries
+two 48-entry photon-number vectors and constructs the projected infinite
+displacement with
+\[
+D(a)\ket0=\ket a,\qquad
+D(a)\ket r=(\hat a^\dagger-a^*)D(a)\ket{r-1}/\sqrt r.
+\]
+Dense numerical Fock instead truncates
+\(a_{48}=\sum_{r=1}^{47}\sqrt r\ket{r-1}\!\bra r\), forms
+\(D^{\rm num}_{48}(a)=\exp(a a_{48}^\dagger-a^*a_{48})\), and materializes
+each \(96\times96\) joint layer unitary. The first is a block of an infinite
+unitary; the second is unitary on an artificial finite grid.
+
+Continuous anchors and squeezed packets retain 32 packets per qubit branch
+plus two 48-entry working arrays. Residual pivots seed centers, 12 inner Adam
+steps move them, and coefficients are refit by
+\(x=(B^\dagger B+10^{-9}I)^{-1}B^\dagger v\). Squeezed packets add 16 steps
+for a bounded complex squeeze per packet. Both use a heuristic straight-through
+derivative for discrete selection.
+
+\textbf{Exact score.}
+All methods train against the normalized 48-level target projection, whose norm
+rounds to 1.0 in float64. Every restart is finally ranked without a Fock cutoff:
+\[
+F_{\rm exact}=\sum_{q=0}^1\left|\sum_j a_{qj}
+\frac{\langle-2|z_{qj}\rangle+\langle2|z_{qj}\rangle}
+{\sqrt{2+2e^{-8}}}\right|^2.
+\]
+The qubit is traced out. \(1-F_{\rm exact}\) is exact infidelity for the stated
+two-component target up to float64 arithmetic.
+
+\begin{table}[H]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{r l r r r}
+\toprule
+\(n\) & optimizer & exact \(F\) & \(1-F\) & all-restart wall time (s)\\
+\midrule
+% RESULTS_ROWS
+\bottomrule
+\end{tabular}
+\caption{Winner selected by exact fidelity. Wall time includes all three
+10,000-step restarts, first compilation, and exact host rescoring.}
+\end{table}
+
+\newpage
+\textbf{Search time and physical gate time.}
+\[
+T_C=\sum_j\left[24\,{\rm ns}+\max\left(
+\frac{|\beta_j|}{(2\pi\,50\,{\rm kHz})20},48\,{\rm ns}\right)\right],
+\]
+\[
+T_{E,{\rm LB}}=\sum_j\max\left(
+\frac{|\beta_j|}{(2\pi\,33\,{\rm kHz})30},224\,{\rm ns}\right).
+\]
+The latter is a hardware lower bound, not an upstream compiled waveform.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.49\linewidth}\includegraphics[width=\linewidth]{figs/wall_time_vs_layers.png}\end{minipage}\hfill
+\begin{minipage}{.49\linewidth}\includegraphics[width=\linewidth]{figs/infidelity_vs_layers.png}\end{minipage}
+
+\vspace{3pt}
+\begin{minipage}{.49\linewidth}\includegraphics[width=\linewidth]{figs/gate_time_coherax_vs_layers.png}\end{minipage}\hfill
+\begin{minipage}{.49\linewidth}\includegraphics[width=\linewidth]{figs/gate_time_eickbusch_bound_vs_layers.png}\end{minipage}
+\caption{Requested line plots. Infidelity has a logarithmic vertical axis.}
+\end{figure}
+
+\textbf{Observed result and caveats.}
+% RESULTS_DISCUSSION
+
+Every number is a best-observed three-restart result, not a proof of global
+optimality. Dense numerical Fock has finite-grid boundary physics and
+complex64 propagation error. Packet selection gradients are heuristic. An
+independent 256-level conversion checks the saved physical circuits.
+
+\newpage
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth,height=.88\textheight,keepaspectratio]{figs/wigner_optimizer_grid.png}
+\caption{Wigner functions generated with \texttt{dq.plot.wigner}. Columns are
+the five depths; rows are full coherent paths, analytic Fock, dense numerical
+Fock, squeezed packets, and continuous anchors. The bottom panel is the exact
+cat target. Each optimizer panel is reconstructed from its saved physical
+circuit and traced over the qubit.}
+\end{figure}
+\end{document}

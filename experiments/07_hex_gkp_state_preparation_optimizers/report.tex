@@ -1,0 +1,159 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.50in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,float,microtype}
+\usepackage[T1]{fontenc}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2.5pt}
+\newcommand{\ket}[1]{\lvert #1\rangle}
+\newcommand{\bra}[1]{\langle #1\rvert}
+\begin{document}
+\begin{center}
+{\Large\bfseries Experiment 07: finite hex-GKP state preparation}\\[-1pt]
+{\small Five state representations, 10,000-step restarts, and exact common scoring}
+\end{center}
+
+\textbf{Target, initial state, and one layer.}
+The target is the logical-zero finite-energy hexagonal
+Gottesman--Kitaev--Preskill (GKP) state with envelope $\Delta=0.2$. Define
+$\alpha=\sqrt{\pi/\sqrt3}$ and
+$\eta=e^{2\pi i/3}\alpha$. We retain every integer pair satisfying
+$\max(|m|,|l|,|m-l|)\leq14$ and even $m$. With $k=m/2$ and
+$d_{ml}=m\alpha+l\eta$, the normalized target is
+\[
+ \ket G=\mathcal N^{-1/2}\sum_{m,l}
+ e^{-i\pi kl-\Delta^2|d_{ml}|^2}\ket{d_{ml}},\quad
+ \mathcal N=\sum_{s,t}\widetilde c_s^*\widetilde c_t\langle d_s|d_t\rangle,
+\]
+where
+$\langle a|b\rangle=\exp[-|a-b|^2/2+i(\Re a\Im b-\Im a\Re b)]$.
+The sum has 323 coherent sites. Its squared overlap with the radius-20 shell is
+$0.9999999999877$, and its 256-level mean photon number is $12.2616$.
+
+Every circuit starts from $\ket0_q\ket0_o$. An echoed conditional displacement
+(ECD) moves the oscillator in opposite directions for the two qubit values.
+Depth $n\in\{4,8,12,16,20\}$ means $n$ ECD-plus-qubit-rotation layers. A saved row
+is $[\Re\beta,\Im\beta,\phi,\theta,\gamma=0]$; the output branches are
+displaced by $-\beta/2$ and $+\beta/2$. Each method uses the same three starts
+at fixed depth and 10,000 Adam updates per start. The requested initialization
+is $\beta\sim\mathcal{CN}(0,0.5)$, meaning
+$\Re\beta,\Im\beta\stackrel{\rm iid}{\sim}\mathcal N(0,0.25)$, with
+$\phi,\theta\stackrel{\rm iid}{\sim}U[0,2\pi]$. Adam is the adaptive gradient
+optimizer used for every 10,000-update search; ``iid'' means independent and
+identically distributed.
+
+\textbf{Five method definitions.}
+Full coherent paths keeps all $2^n$ analytic paths and no oscillator cutoff.
+Analytic Fock keeps two 48-entry vectors and builds the upper-left block of the
+infinite displacement with
+\[
+D(a)\ket0=\ket a,\qquad
+D(a)\ket r=(\hat a^\dagger-a^*)D(a)\ket{r-1}/\sqrt r.
+\]
+Dense numerical Fock first truncates
+$a_{48}=\sum_{r=1}^{47}\sqrt r\ket{r-1}\!\bra r$, forms
+$D_{48}^{\rm num}(a)=\exp(a a_{48}^\dagger-a^*a_{48})$, and materializes each
+$96\times96$ joint layer unitary. The former is a projected infinite unitary;
+the latter is unitary on an artificial finite grid. Dense matrix exponentials
+and state propagation use complex64; common final rescoring uses float64.
+
+Continuous anchors and squeezed packets retain 32 packets per qubit branch
+plus two 48-entry working Fock arrays (160 propagated complex coefficients).
+Residual pivots seed centers, 12 inner Adam steps move them, and coefficients
+are globally refit as
+$x=(B^\dagger B+10^{-9}I)^{-1}B^\dagger v$. Squeezed packets add 16 steps to
+fit one bounded complex squeeze per packet. Both use a heuristic
+straight-through derivative for the discrete projection.
+
+\textbf{Training score versus reported score.}
+The Fock basis is the photon-number basis $\ket0,\ket1,\ldots$; a 48-level
+vector stores photon numbers 0 through 47.
+All methods train against the normalized 48-level target projection, which
+retains $\langle G|P_{48}|G\rangle=0.9673590488$. This shared approximation
+makes the depth-20 search practical; the full coherent circuit state itself is
+still untruncated. The cutoff matches the packet working grid while keeping
+dense 10,000-step restarts feasible. Every restart is
+finally ranked by the cutoff-free score
+\[
+F_{\rm exact}=\sum_{q=0}^1\left|\sum_j a_{qj}\langle G|z_{qj}\rangle\right|^2,
+\quad
+\ket\Psi=\sum_q\ket q\sum_j a_{qj}\ket{z_{qj}}.
+\]
+The qubit is traced out. $1-F_{\rm exact}$ is the reported infidelity.
+``Native fidelity'' in the data is a method's internal 48-level score; it is
+diagnostic only and never selects the reported winner.
+
+\begin{table}[H]
+\centering\scriptsize
+\setlength{\tabcolsep}{3.2pt}
+\begin{tabular}{r l r r r}
+\toprule
+$n$ & optimizer & exact $F$ & $1-F$ & all-restart wall time (s)\\
+\midrule
+% RESULTS_ROWS
+\bottomrule
+\end{tabular}
+\caption{Winner selected by the common exact score. Wall time includes all
+three 10,000-step restarts, first JAX compilation, and exact host rescoring.}
+\end{table}
+
+\newpage
+\textbf{Computer search time and physical gate time.}
+Wall time measures optimization on this machine. Physical gate time estimates
+execution of the saved circuit. The Coherax convention and the separately
+labelled Eickbusch-hardware lower bound are
+\[
+T_C=\sum_j\left[24\,{\rm ns}+\max\left(
+\frac{|\beta_j|}{(2\pi\,50\,{\rm kHz})20},48\,{\rm ns}\right)\right],
+\]
+\[
+T_{E,{\rm LB}}=\sum_j\max\left(
+\frac{|\beta_j|}{(2\pi\,33\,{\rm kHz})30},224\,{\rm ns}\right).
+\]
+The repository cannot compile new arbitrary sequences with the upstream pulse
+compiler, so $T_{E,{\rm LB}}$ is not a compiled waveform duration. Its 224 ns
+floor is two 24 ns qubit pulses plus four 44 ns displacement pulses.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}{.49\linewidth}\centering
+\includegraphics[width=\linewidth]{figs/wall_time_vs_layers.png}
+\end{minipage}\hfill
+\begin{minipage}{.49\linewidth}\centering
+\includegraphics[width=\linewidth]{figs/infidelity_vs_layers.png}
+\end{minipage}
+
+\vspace{3pt}
+\begin{minipage}{.49\linewidth}\centering
+\includegraphics[width=\linewidth]{figs/gate_time_coherax_vs_layers.png}
+\end{minipage}\hfill
+\begin{minipage}{.49\linewidth}\centering
+\includegraphics[width=\linewidth]{figs/gate_time_eickbusch_bound_vs_layers.png}
+\end{minipage}
+\caption{Requested line plots. The infidelity panel has a logarithmic vertical
+axis. Every point is the winner after three matched 10,000-step restarts.}
+\end{figure}
+
+\textbf{Observed result and caveats.}
+% RESULTS_DISCUSSION
+
+The 48-level target omits $3.2641\%$ of the exact target norm, so this study is
+a comparison of methods under a common practical training objective, followed
+by exact ranking. The dense numerical method also has finite-grid boundary
+physics and complex64 propagation error. Packet gradients are heuristic. The
+independent 256-level validation quantifies the separate error made only when
+the exact coherent result is converted for checking. These are best-observed
+circuits, not proofs of global optimality.
+
+\newpage
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth,height=.88\textheight,keepaspectratio]{figs/wigner_optimizer_grid.png}
+\caption{Wigner functions generated with \texttt{dq.plot.wigner}. Columns are
+the five depths and rows are full coherent paths, analytic Fock recurrence,
+dense numerical Fock, squeezed packets, and continuous anchors. The bottom
+panel is the normalized 96-level target projection, which retains
+$0.9995326080$ of the exact target norm. Every optimizer panel is reconstructed
+from the saved physical circuit and traced over the qubit; no compressed
+surrogate is plotted.}
+\end{figure}
+\end{document}

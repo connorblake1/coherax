@@ -1,0 +1,40 @@
+{
+  "method": "full_coherent",
+  "layers": 4,
+  "target": "logical |0> finite hex GKP, Delta=0.2, complete hex shell radius 14",
+  "exact_fidelity": 0.4914242175847287,
+  "sequence": [
+    {
+      "layer": 1,
+      "beta_real": 2.586670559921121,
+      "beta_imag": 0.1978581818089308,
+      "phi_radians": 1.5707963267948963,
+      "theta_radians": 1.5707963267948961,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 2,
+      "beta_real": 1.7431196016763475,
+      "beta_imag": 1.7098259240772464,
+      "phi_radians": -5.223497153915871e-17,
+      "theta_radians": 4.7325516874794475,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 3,
+      "beta_real": -1.2833069725657522,
+      "beta_imag": 1.2950459728760573,
+      "phi_radians": 3.1415926535897927,
+      "theta_radians": 1.8357213689449174,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 4,
+      "beta_real": 0.4101341138952489,
+      "beta_imag": 0.14038300041546417,
+      "phi_radians": 2.751125449674502,
+      "theta_radians": 4.6568926347464545,
+      "gamma_radians": 0.0
+    }
+  ]
+}

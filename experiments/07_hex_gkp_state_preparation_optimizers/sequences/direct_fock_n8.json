@@ -1,0 +1,72 @@
+{
+  "method": "direct_fock",
+  "layers": 8,
+  "target": "logical |0> finite hex GKP, Delta=0.2, complete hex shell radius 14",
+  "exact_fidelity": 0.7732272151451023,
+  "sequence": [
+    {
+      "layer": 1,
+      "beta_real": 0.7909420797832938,
+      "beta_imag": -1.0834596216948695,
+      "phi_radians": -1.5707963267948628,
+      "theta_radians": 1.5707963267949128,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 2,
+      "beta_real": 1.7172961263551387,
+      "beta_imag": -1.5324140770386507,
+      "phi_radians": 3.14159265358981,
+      "theta_radians": 1.2485096466879488,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 3,
+      "beta_real": 2.1051903093331696,
+      "beta_imag": -2.6937680996272335,
+      "phi_radians": 3.1415926535897536,
+      "theta_radians": 1.450076287300309,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 4,
+      "beta_real": -1.5507625391722604,
+      "beta_imag": -1.754010970425565,
+      "phi_radians": 6.283185307179619,
+      "theta_radians": 1.619671402871244,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 5,
+      "beta_real": 2.279758568220169,
+      "beta_imag": 0.1461841598757816,
+      "phi_radians": -3.630434863796955e-14,
+      "theta_radians": 1.4694502828063944,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 6,
+      "beta_real": -0.03216186655476966,
+      "beta_imag": 0.7349682349686857,
+      "phi_radians": 6.28318530717958,
+      "theta_radians": 4.111436887964821,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 7,
+      "beta_real": 0.17687803366715693,
+      "beta_imag": -0.6210162271966677,
+      "phi_radians": 6.2831853071795365,
+      "theta_radians": 2.0817259897221767,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 8,
+      "beta_real": -0.06636418154560056,
+      "beta_imag": -0.40313094580002545,
+      "phi_radians": 1.796348033127609,
+      "theta_radians": 4.605461213359075,
+      "gamma_radians": 0.0
+    }
+  ]
+}

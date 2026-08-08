@@ -1,0 +1,168 @@
+{
+  "method": "squeezed_packets",
+  "layers": 20,
+  "target": "(|9> + |10>) / sqrt(2)",
+  "exact_fidelity": 0.9987649350836105,
+  "sequence": [
+    {
+      "layer": 1,
+      "beta_real": 1.0634160529377183,
+      "beta_imag": -2.2043294336048773,
+      "phi_radians": -1.850828079475217,
+      "theta_radians": -1.4061514702347921,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 2,
+      "beta_real": 1.2030312337638498,
+      "beta_imag": -1.491236194715186,
+      "phi_radians": 0.34526160244408294,
+      "theta_radians": -2.3473662272553613,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 3,
+      "beta_real": 0.5583531425876587,
+      "beta_imag": -0.10503219671945337,
+      "phi_radians": -0.9570365032124728,
+      "theta_radians": -1.1261754228877106,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 4,
+      "beta_real": 0.35930878385761467,
+      "beta_imag": -1.0618540571081403,
+      "phi_radians": -0.46382285586068306,
+      "theta_radians": -1.4470068333364434,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 5,
+      "beta_real": 0.765364573148659,
+      "beta_imag": 0.37305378518265436,
+      "phi_radians": -0.6248786588004624,
+      "theta_radians": -0.7914640349324152,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 6,
+      "beta_real": -1.3736239250438131,
+      "beta_imag": 0.2362997724198142,
+      "phi_radians": -0.5034214044829856,
+      "theta_radians": 1.4139988630937241,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 7,
+      "beta_real": 0.6126177774725117,
+      "beta_imag": 0.41978865951944816,
+      "phi_radians": 0.49597953826512786,
+      "theta_radians": 1.5889555346495545,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 8,
+      "beta_real": -1.8797733222440662,
+      "beta_imag": 0.6423899345681154,
+      "phi_radians": -0.6522704967606047,
+      "theta_radians": -1.5597666312678387,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 9,
+      "beta_real": 0.17467646390606287,
+      "beta_imag": 0.5085692540309847,
+      "phi_radians": 1.0755460621630482,
+      "theta_radians": -0.6978139521230308,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 10,
+      "beta_real": -0.5454758507097592,
+      "beta_imag": -0.33302088731539964,
+      "phi_radians": -0.27637884413293534,
+      "theta_radians": 2.7643176760085124,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 11,
+      "beta_real": -0.22824457151167754,
+      "beta_imag": -1.2075732324983233,
+      "phi_radians": -0.20627909534523176,
+      "theta_radians": -1.7085046065544613,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 12,
+      "beta_real": -0.33296953850071426,
+      "beta_imag": 0.2904575329915458,
+      "phi_radians": 0.07604550588137166,
+      "theta_radians": 2.22194235366583,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 13,
+      "beta_real": 0.18453302048919074,
+      "beta_imag": 0.3719527829730967,
+      "phi_radians": -0.9940114362142014,
+      "theta_radians": 1.0975594125323784,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 14,
+      "beta_real": 1.6208550086130864,
+      "beta_imag": -0.04144312868356327,
+      "phi_radians": -2.718190017706436,
+      "theta_radians": 0.2691251325244887,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 15,
+      "beta_real": -1.2834926833848286,
+      "beta_imag": -0.47567030776128877,
+      "phi_radians": 0.5150228696362974,
+      "theta_radians": 0.7998395651768764,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 16,
+      "beta_real": 0.5122774013361042,
+      "beta_imag": -0.5217488123592124,
+      "phi_radians": 0.4661898351496168,
+      "theta_radians": 1.7365820952265865,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 17,
+      "beta_real": 0.44767040411354303,
+      "beta_imag": 0.7680079962719669,
+      "phi_radians": -3.0695656204066486,
+      "theta_radians": 1.3174307021220548,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 18,
+      "beta_real": -1.4260133796314614,
+      "beta_imag": 0.6670008308671075,
+      "phi_radians": -0.07168520568641533,
+      "theta_radians": -0.42586352345883877,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 19,
+      "beta_real": -0.15456590179110086,
+      "beta_imag": 0.5674687635165534,
+      "phi_radians": -3.097796705590407,
+      "theta_radians": -0.6699682781551654,
+      "gamma_radians": 0.0
+    },
+    {
+      "layer": 20,
+      "beta_real": -0.07405986374408723,
+      "beta_imag": 0.29710131374751475,
+      "phi_radians": -3.867481436236568,
+      "theta_radians": 0.9263061967774961,
+      "gamma_radians": 0.0
+    }
+  ]
+}

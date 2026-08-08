@@ -1,0 +1,1221 @@
+{
+  "experiment": "06_state_preparation_optimizers",
+  "target": {
+    "formula": "(|9> + |10>) / sqrt(2)",
+    "oscillator_coefficients": {
+      "9": 0.7071067811865475,
+      "10": 0.7071067811865475
+    },
+    "initial_joint_state": "|qubit 0> tensor |oscillator 0>",
+    "fidelity": "sum_q |<target|psi_q>|^2 for the exact joint pure circuit output"
+  },
+  "configuration": {
+    "layer_counts": [
+      4,
+      8,
+      12,
+      16,
+      20
+    ],
+    "methods": [
+      "full_coherent",
+      "direct_fock",
+      "dense_numerical_fock",
+      "squeezed_packets",
+      "continuous_anchors"
+    ],
+    "restart_count": 3,
+    "outer_steps_by_depth": {
+      "4": 1200,
+      "8": 1200,
+      "12": 1200,
+      "16": 1200,
+      "20": 10000
+    },
+    "outer_learning_rate": 0.008,
+    "fock_optimizer_cutoff": 48,
+    "analytic_fock_displacement": "upper-left block of the exact infinite-dimensional displacement, built by recurrence",
+    "dense_numerical_fock_displacement": "expm(alpha*a_N^dagger-conjugate(alpha)*a_N) after truncating a_N",
+    "dense_numerical_fock_joint_unitary_shape": [
+      96,
+      96
+    ],
+    "dense_numerical_fock_precision": "complex64 matrix exponentials and joint-state propagation; target-overlap arithmetic may promote; float64 exact rescoring",
+    "packet_fock_cutoff": 48,
+    "packets_per_qubit_branch": 32,
+    "total_retained_packets": 64,
+    "continuous_center_steps": 12,
+    "squeeze_steps": 16,
+    "validation_fock_cutoff": 96,
+    "outer_gradient_for_packet_methods": "straight-through projection estimator",
+    "winner_selection": "largest exact analytic fidelity, never native surrogate fidelity"
+  },
+  "timing_definitions": {
+    "optimization_wall_time": "elapsed time for all restarts at one method and depth, including first JAX compilation and exact host rescoring",
+    "coherax_gate_time_microseconds": "sum_i [24 ns + max(|beta_i|/((2*pi*50 kHz)*20), 48 ns)]",
+    "eickbusch_lower_bound_microseconds": "sum_i max(|beta_i|/((2*pi*33 kHz)*30), 224 ns); this is not an upstream pulse-compiler duration"
+  },
+  "records": [
+    {
+      "method": "full_coherent",
+      "method_label": "full coherent paths",
+      "layers": 4,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 2.499330500140786,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 0.7443296248093247,
+      "native_fidelity": 0.5050185127395059,
+      "exact_fidelity": 0.5050185127395058,
+      "exact_infidelity": 0.4949814872604942,
+      "coherax_gate_time_microseconds": 1.6140592984418878,
+      "eickbusch_lower_bound_microseconds": 1.672951475503166,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 1.0443187500350177,
+          "native_fidelity": 0.2534638338538364,
+          "exact_fidelity": 0.2534638338538361,
+          "exact_infidelity": 0.7465361661461639
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 0.7443296248093247,
+          "native_fidelity": 0.5050185127395059,
+          "exact_fidelity": 0.5050185127395058,
+          "exact_infidelity": 0.4949814872604942
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 0.7083980832248926,
+          "native_fidelity": 0.3966117525233046,
+          "exact_fidelity": 0.3966117525233045,
+          "exact_infidelity": 0.6033882474766955
+        }
+      ]
+    },
+    {
+      "method": "full_coherent",
+      "method_label": "full coherent paths",
+      "layers": 8,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 5.870800917036831,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 1.9776388327591121,
+      "native_fidelity": 0.8575364267465426,
+      "exact_fidelity": 0.8575364267465426,
+      "exact_infidelity": 0.14246357325345738,
+      "coherax_gate_time_microseconds": 2.004435207591755,
+      "eickbusch_lower_bound_microseconds": 2.318222266422124,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 1.9915082082152367,
+          "native_fidelity": 0.8035776074729839,
+          "exact_fidelity": 0.8035776074729835,
+          "exact_infidelity": 0.19642239252701654
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 1.9776388327591121,
+          "native_fidelity": 0.8575364267465426,
+          "exact_fidelity": 0.8575364267465426,
+          "exact_infidelity": 0.14246357325345738
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 1.899671624880284,
+          "native_fidelity": 0.7780810164757089,
+          "exact_fidelity": 0.7780810164757087,
+          "exact_infidelity": 0.2219189835242913
+        }
+      ]
+    },
+    {
+      "method": "full_coherent",
+      "method_label": "full coherent paths",
+      "layers": 12,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 14.533498832955956,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 4.863839583005756,
+      "native_fidelity": 0.9743464725598345,
+      "exact_fidelity": 0.9743464725598352,
+      "exact_infidelity": 0.025653527440164803,
+      "coherax_gate_time_microseconds": 2.7653492729713296,
+      "eickbusch_lower_bound_microseconds": 3.2470683996406433,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 4.9129524594172835,
+          "native_fidelity": 0.9691439474890846,
+          "exact_fidelity": 0.9691439474890846,
+          "exact_infidelity": 0.030856052510915388
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 4.863839583005756,
+          "native_fidelity": 0.9743464725598345,
+          "exact_fidelity": 0.9743464725598352,
+          "exact_infidelity": 0.025653527440164803
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 4.7540443749167025,
+          "native_fidelity": 0.9516394336010584,
+          "exact_fidelity": 0.9516394336010584,
+          "exact_infidelity": 0.048360566398941596
+        }
+      ]
+    },
+    {
+      "method": "full_coherent",
+      "method_label": "full coherent paths",
+      "layers": 16,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 36.699039165861905,
+      "winning_restart": 2,
+      "winning_restart_wall_seconds": 12.250104084145278,
+      "native_fidelity": 0.9882809507545482,
+      "exact_fidelity": 0.988280950754548,
+      "exact_infidelity": 0.011719049245451973,
+      "coherax_gate_time_microseconds": 3.31116337021899,
+      "eickbusch_lower_bound_microseconds": 3.9051349399789013,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 12.274700208101422,
+          "native_fidelity": 0.9677441108487564,
+          "exact_fidelity": 0.9677441108487561,
+          "exact_infidelity": 0.03225588915124389
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 12.15896008303389,
+          "native_fidelity": 0.9857597124611699,
+          "exact_fidelity": 0.9857597124611701,
+          "exact_infidelity": 0.014240287538829888
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 12.250104084145278,
+          "native_fidelity": 0.9882809507545482,
+          "exact_fidelity": 0.988280950754548,
+          "exact_infidelity": 0.011719049245451973
+        }
+      ]
+    },
+    {
+      "method": "full_coherent",
+      "method_label": "full coherent paths",
+      "layers": 20,
+      "restart_count": 3,
+      "outer_steps_per_restart": 10000,
+      "total_multirestart_wall_seconds": 2038.6902691246942,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 692.4411654169671,
+      "native_fidelity": 0.9987678758841347,
+      "exact_fidelity": 0.9987678758841348,
+      "exact_infidelity": 0.001232124115865152,
+      "coherax_gate_time_microseconds": 3.8797086614758745,
+      "eickbusch_lower_bound_microseconds": 4.893325928447626,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 654.2685302081518,
+          "native_fidelity": 0.9978136622748444,
+          "exact_fidelity": 0.9978136622748447,
+          "exact_infidelity": 0.0021863377251553073
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 692.4411654169671,
+          "native_fidelity": 0.9987678758841347,
+          "exact_fidelity": 0.9987678758841348,
+          "exact_infidelity": 0.001232124115865152
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 691.7632661666721,
+          "native_fidelity": 0.984637026511493,
+          "exact_fidelity": 0.9846370265114927,
+          "exact_infidelity": 0.015362973488507348
+        }
+      ]
+    },
+    {
+      "method": "direct_fock",
+      "method_label": "analytic Fock recurrence",
+      "layers": 4,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 3.742100542411208,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 1.2198867499828339,
+      "native_fidelity": 0.5050185127394998,
+      "exact_fidelity": 0.5050185127395022,
+      "exact_infidelity": 0.49498148726049784,
+      "coherax_gate_time_microseconds": 1.6140592984418864,
+      "eickbusch_lower_bound_microseconds": 1.6729514755031636,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 1.289394041057676,
+          "native_fidelity": 0.2534638338538362,
+          "exact_fidelity": 0.25346383385383553,
+          "exact_infidelity": 0.7465361661461645
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 1.2198867499828339,
+          "native_fidelity": 0.5050185127394998,
+          "exact_fidelity": 0.5050185127395022,
+          "exact_infidelity": 0.49498148726049784
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 1.2310906667262316,
+          "native_fidelity": 0.3966117525233033,
+          "exact_fidelity": 0.3966117525233036,
+          "exact_infidelity": 0.6033882474766964
+        }
+      ]
+    },
+    {
+      "method": "direct_fock",
+      "method_label": "analytic Fock recurrence",
+      "layers": 8,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 7.206741415895522,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 2.3530013328418136,
+      "native_fidelity": 0.8575349515326744,
+      "exact_fidelity": 0.8575349515326739,
+      "exact_infidelity": 0.1424650484673261,
+      "coherax_gate_time_microseconds": 2.0043972849527947,
+      "eickbusch_lower_bound_microseconds": 2.3181997461175308,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 2.4275661669671535,
+          "native_fidelity": 0.8035776074997986,
+          "exact_fidelity": 0.8035776074747184,
+          "exact_infidelity": 0.1964223925252816
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 2.3530013328418136,
+          "native_fidelity": 0.8575349515326744,
+          "exact_fidelity": 0.8575349515326739,
+          "exact_infidelity": 0.1424650484673261
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 2.4242230840027332,
+          "native_fidelity": 0.7780816975157951,
+          "exact_fidelity": 0.7780813081717646,
+          "exact_infidelity": 0.22191869182823543
+        }
+      ]
+    },
+    {
+      "method": "direct_fock",
+      "method_label": "analytic Fock recurrence",
+      "layers": 12,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 10.871950207743794,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 3.5421701655723155,
+      "native_fidelity": 0.974357565039733,
+      "exact_fidelity": 0.9743504453766096,
+      "exact_infidelity": 0.025649554623390358,
+      "coherax_gate_time_microseconds": 2.7658658795204807,
+      "eickbusch_lower_bound_microseconds": 3.2474645099043413,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 3.6643301248550415,
+          "native_fidelity": 0.9691438327552854,
+          "exact_fidelity": 0.9691433751641815,
+          "exact_infidelity": 0.030856624835818525
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 3.5421701655723155,
+          "native_fidelity": 0.974357565039733,
+          "exact_fidelity": 0.9743504453766096,
+          "exact_infidelity": 0.025649554623390358
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 3.6625792500562966,
+          "native_fidelity": 0.9516693690958047,
+          "exact_fidelity": 0.9516276891027657,
+          "exact_infidelity": 0.04837231089723426
+        }
+      ]
+    },
+    {
+      "method": "direct_fock",
+      "method_label": "analytic Fock recurrence",
+      "layers": 16,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 14.769586415961385,
+      "winning_restart": 2,
+      "winning_restart_wall_seconds": 4.957169875036925,
+      "native_fidelity": 0.9865615810426724,
+      "exact_fidelity": 0.9865520321784929,
+      "exact_infidelity": 0.013447967821507145,
+      "coherax_gate_time_microseconds": 3.323665598851766,
+      "eickbusch_lower_bound_microseconds": 3.907089570369634,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 4.840865750331432,
+          "native_fidelity": 0.9687808634573883,
+          "exact_fidelity": 0.9674307344077769,
+          "exact_infidelity": 0.03256926559222306
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 4.959420540835708,
+          "native_fidelity": 0.9857722802486378,
+          "exact_fidelity": 0.9857665478462023,
+          "exact_infidelity": 0.014233452153797677
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 4.957169875036925,
+          "native_fidelity": 0.9865615810426724,
+          "exact_fidelity": 0.9865520321784929,
+          "exact_infidelity": 0.013447967821507145
+        }
+      ]
+    },
+    {
+      "method": "direct_fock",
+      "method_label": "analytic Fock recurrence",
+      "layers": 20,
+      "restart_count": 3,
+      "outer_steps_per_restart": 10000,
+      "total_multirestart_wall_seconds": 53.22057070909068,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 17.713495625182986,
+      "native_fidelity": 0.9987782696760908,
+      "exact_fidelity": 0.9987675073335944,
+      "exact_infidelity": 0.0012324926664055713,
+      "coherax_gate_time_microseconds": 3.879752798907627,
+      "eickbusch_lower_bound_microseconds": 4.894084120118689,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 17.78556604217738,
+          "native_fidelity": 0.9939059824965985,
+          "exact_fidelity": 0.993660117423707,
+          "exact_infidelity": 0.006339882576293032
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 17.713495625182986,
+          "native_fidelity": 0.9987782696760908,
+          "exact_fidelity": 0.9987675073335944,
+          "exact_infidelity": 0.0012324926664055713
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 17.52807779191062,
+          "native_fidelity": 0.9969486368525939,
+          "exact_fidelity": 0.9968214001197884,
+          "exact_infidelity": 0.00317859988021163
+        }
+      ]
+    },
+    {
+      "method": "dense_numerical_fock",
+      "method_label": "dense numerical Fock",
+      "layers": 4,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 17.438835125416517,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 6.121887625195086,
+      "native_fidelity": 0.5050185918807983,
+      "exact_fidelity": 0.5050185516450671,
+      "exact_infidelity": 0.49498144835493285,
+      "coherax_gate_time_microseconds": 1.6140593071800278,
+      "eickbusch_lower_bound_microseconds": 1.6729515034649265,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 5.676281333435327,
+          "native_fidelity": 0.25346410274505615,
+          "exact_fidelity": 0.2534638333978593,
+          "exact_infidelity": 0.7465361666021407
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 6.121887625195086,
+          "native_fidelity": 0.5050185918807983,
+          "exact_fidelity": 0.5050185516450671,
+          "exact_infidelity": 0.49498144835493285
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 5.6373677919618785,
+          "native_fidelity": 0.39661186933517456,
+          "exact_fidelity": 0.39661173142041434,
+          "exact_infidelity": 0.6033882685795857
+        }
+      ]
+    },
+    {
+      "method": "dense_numerical_fock",
+      "method_label": "dense numerical Fock",
+      "layers": 8,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 33.35275962483138,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 10.743500958196819,
+      "native_fidelity": 0.8575363159179688,
+      "exact_fidelity": 0.857536424844409,
+      "exact_infidelity": 0.14246357515559105,
+      "coherax_gate_time_microseconds": 2.004435232535203,
+      "eickbusch_lower_bound_microseconds": 2.31822230822898,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 11.150837750174105,
+          "native_fidelity": 0.8035777807235718,
+          "exact_fidelity": 0.8035776100895209,
+          "exact_infidelity": 0.1964223899104791
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 10.743500958196819,
+          "native_fidelity": 0.8575363159179688,
+          "exact_fidelity": 0.857536424844409,
+          "exact_infidelity": 0.14246357515559105
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 11.456087375059724,
+          "native_fidelity": 0.7780809998512268,
+          "exact_fidelity": 0.7780809843072225,
+          "exact_infidelity": 0.2219190156927775
+        }
+      ]
+    },
+    {
+      "method": "dense_numerical_fock",
+      "method_label": "dense numerical Fock",
+      "layers": 12,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 56.5121826659888,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 18.603670082986355,
+      "native_fidelity": 0.9743455052375793,
+      "exact_fidelity": 0.9743453348644437,
+      "exact_infidelity": 0.025654665135556254,
+      "coherax_gate_time_microseconds": 2.765353125900223,
+      "eickbusch_lower_bound_microseconds": 3.247070947011231,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 18.599173250142485,
+          "native_fidelity": 0.9691448211669922,
+          "exact_fidelity": 0.9691448108268408,
+          "exact_infidelity": 0.030855189173159214
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 18.603670082986355,
+          "native_fidelity": 0.9743455052375793,
+          "exact_fidelity": 0.9743453348644437,
+          "exact_infidelity": 0.025654665135556254
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 19.306113957893103,
+          "native_fidelity": 0.951639711856842,
+          "exact_fidelity": 0.9516394339441131,
+          "exact_infidelity": 0.0483605660558869
+        }
+      ]
+    },
+    {
+      "method": "dense_numerical_fock",
+      "method_label": "dense numerical Fock",
+      "layers": 16,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 77.48541870899498,
+      "winning_restart": 2,
+      "winning_restart_wall_seconds": 25.392896958161145,
+      "native_fidelity": 0.9882808923721313,
+      "exact_fidelity": 0.9882808773879218,
+      "exact_infidelity": 0.011719122612078192,
+      "coherax_gate_time_microseconds": 3.3111645109415164,
+      "eickbusch_lower_bound_microseconds": 3.905135323656849,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 25.816955333109945,
+          "native_fidelity": 0.9677456617355347,
+          "exact_fidelity": 0.9677440551935077,
+          "exact_infidelity": 0.0322559448064923
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 26.25926575018093,
+          "native_fidelity": 0.9857600927352905,
+          "exact_fidelity": 0.9857597006031082,
+          "exact_infidelity": 0.014240299396891754
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 25.392896958161145,
+          "native_fidelity": 0.9882808923721313,
+          "exact_fidelity": 0.9882808773879218,
+          "exact_infidelity": 0.011719122612078192
+        }
+      ]
+    },
+    {
+      "method": "dense_numerical_fock",
+      "method_label": "dense numerical Fock",
+      "layers": 20,
+      "restart_count": 3,
+      "outer_steps_per_restart": 10000,
+      "total_multirestart_wall_seconds": 483.39268349995837,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 162.63126466609538,
+      "native_fidelity": 0.9987684488296509,
+      "exact_fidelity": 0.9987678674588314,
+      "exact_infidelity": 0.0012321325411686068,
+      "coherax_gate_time_microseconds": 3.8799253070070425,
+      "eickbusch_lower_bound_microseconds": 4.893309955178019,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 160.62486904207617,
+          "native_fidelity": 0.9978184700012207,
+          "exact_fidelity": 0.9978184466031875,
+          "exact_infidelity": 0.0021815533968124745
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 162.63126466609538,
+          "native_fidelity": 0.9987684488296509,
+          "exact_fidelity": 0.9987678674588314,
+          "exact_infidelity": 0.0012321325411686068
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 159.95980350021273,
+          "native_fidelity": 0.9846595525741577,
+          "exact_fidelity": 0.9846350864641902,
+          "exact_infidelity": 0.015364913535809821
+        }
+      ]
+    },
+    {
+      "method": "squeezed_packets",
+      "method_label": "squeezed packets",
+      "layers": 4,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 4.2410675417631865,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 1.3760315841063857,
+      "native_fidelity": 0.5050185127394998,
+      "exact_fidelity": 0.5050185127395022,
+      "exact_infidelity": 0.49498148726049784,
+      "coherax_gate_time_microseconds": 1.6140592984418864,
+      "eickbusch_lower_bound_microseconds": 1.6729514755031636,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 1.3746407087892294,
+          "native_fidelity": 0.2534638338538362,
+          "exact_fidelity": 0.25346383385383553,
+          "exact_infidelity": 0.7465361661461645
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 1.3760315841063857,
+          "native_fidelity": 0.5050185127394998,
+          "exact_fidelity": 0.5050185127395022,
+          "exact_infidelity": 0.49498148726049784
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 1.488698084373027,
+          "native_fidelity": 0.3966117525233033,
+          "exact_fidelity": 0.3966117525233036,
+          "exact_infidelity": 0.6033882474766964
+        }
+      ]
+    },
+    {
+      "method": "squeezed_packets",
+      "method_label": "squeezed packets",
+      "layers": 8,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 114.66819845838472,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 37.726478916592896,
+      "native_fidelity": 0.8575349634495258,
+      "exact_fidelity": 0.8575349650135446,
+      "exact_infidelity": 0.14246503498645535,
+      "coherax_gate_time_microseconds": 2.0043976233889382,
+      "eickbusch_lower_bound_microseconds": 2.3181999421052852,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 37.56699654087424,
+          "native_fidelity": 0.80357761194012,
+          "exact_fidelity": 0.8035776071781245,
+          "exact_infidelity": 0.19642239282187546
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 37.726478916592896,
+          "native_fidelity": 0.8575349634495258,
+          "exact_fidelity": 0.8575349650135446,
+          "exact_infidelity": 0.14246503498645535
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 39.36876254202798,
+          "native_fidelity": 0.7780815410516968,
+          "exact_fidelity": 0.7780812421380958,
+          "exact_infidelity": 0.22191875786190418
+        }
+      ]
+    },
+    {
+      "method": "squeezed_packets",
+      "method_label": "squeezed packets",
+      "layers": 12,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 360.45456770900637,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 118.77835604175925,
+      "native_fidelity": 0.9743611046533648,
+      "exact_fidelity": 0.9743482649697897,
+      "exact_infidelity": 0.025651735030210343,
+      "coherax_gate_time_microseconds": 2.7660165384612214,
+      "eickbusch_lower_bound_microseconds": 3.247558850503245,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 120.7826552502811,
+          "native_fidelity": 0.9691708740920079,
+          "exact_fidelity": 0.969118602323209,
+          "exact_infidelity": 0.03088139767679099
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 118.77835604175925,
+          "native_fidelity": 0.9743611046533648,
+          "exact_fidelity": 0.9743482649697897,
+          "exact_infidelity": 0.025651735030210343
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 120.88642908399925,
+          "native_fidelity": 0.9516692701837687,
+          "exact_fidelity": 0.9516262756390695,
+          "exact_infidelity": 0.04837372436093046
+        }
+      ]
+    },
+    {
+      "method": "squeezed_packets",
+      "method_label": "squeezed packets",
+      "layers": 16,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 659.3939901250415,
+      "winning_restart": 2,
+      "winning_restart_wall_seconds": 222.81566987466067,
+      "native_fidelity": 0.987279140687619,
+      "exact_fidelity": 0.987050830950992,
+      "exact_infidelity": 0.012949169049008002,
+      "coherax_gate_time_microseconds": 3.3209047676080314,
+      "eickbusch_lower_bound_microseconds": 3.9073499594397076,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 218.3018545000814,
+          "native_fidelity": 0.9691668252642012,
+          "exact_fidelity": 0.9673954439259282,
+          "exact_infidelity": 0.032604556074071755
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 218.25780983269215,
+          "native_fidelity": 0.9858019070869204,
+          "exact_fidelity": 0.9857710343676327,
+          "exact_infidelity": 0.014228965632367307
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 222.81566987466067,
+          "native_fidelity": 0.987279140687619,
+          "exact_fidelity": 0.987050830950992,
+          "exact_infidelity": 0.012949169049008002
+        }
+      ]
+    },
+    {
+      "method": "squeezed_packets",
+      "method_label": "squeezed packets",
+      "layers": 20,
+      "restart_count": 3,
+      "outer_steps_per_restart": 10000,
+      "total_multirestart_wall_seconds": 4703.628215292003,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 1562.1186757921241,
+      "native_fidelity": 0.9988333588527338,
+      "exact_fidelity": 0.9987649350836105,
+      "exact_infidelity": 0.0012350649163894722,
+      "coherax_gate_time_microseconds": 3.880949309915506,
+      "eickbusch_lower_bound_microseconds": 4.894649761646081,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 1586.7086747079156,
+          "native_fidelity": 0.9940807295885139,
+          "exact_fidelity": 0.9936304644276865,
+          "exact_infidelity": 0.006369535572313456
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 1562.1186757921241,
+          "native_fidelity": 0.9988333588527338,
+          "exact_fidelity": 0.9987649350836105,
+          "exact_infidelity": 0.0012350649163894722
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 1554.577754124999,
+          "native_fidelity": 0.9915555505284621,
+          "exact_fidelity": 0.9900070661858406,
+          "exact_infidelity": 0.009992933814159444
+        }
+      ]
+    },
+    {
+      "method": "continuous_anchors",
+      "method_label": "continuous anchors",
+      "layers": 4,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 5.040077917277813,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 1.3011043746955693,
+      "native_fidelity": 0.5050185127394998,
+      "exact_fidelity": 0.5050185127395022,
+      "exact_infidelity": 0.49498148726049784,
+      "coherax_gate_time_microseconds": 1.6140592984418864,
+      "eickbusch_lower_bound_microseconds": 1.6729514755031636,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 2.4147059158422053,
+          "native_fidelity": 0.2534638338538362,
+          "exact_fidelity": 0.25346383385383553,
+          "exact_infidelity": 0.7465361661461645
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 1.3011043746955693,
+          "native_fidelity": 0.5050185127394998,
+          "exact_fidelity": 0.5050185127395022,
+          "exact_infidelity": 0.49498148726049784
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 1.322474665939808,
+          "native_fidelity": 0.3966117525233033,
+          "exact_fidelity": 0.3966117525233036,
+          "exact_infidelity": 0.6033882474766964
+        }
+      ]
+    },
+    {
+      "method": "continuous_anchors",
+      "method_label": "continuous anchors",
+      "layers": 8,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 63.75396524975076,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 21.377755040768534,
+      "native_fidelity": 0.8575349786949222,
+      "exact_fidelity": 0.8575349730686589,
+      "exact_infidelity": 0.1424650269313411,
+      "coherax_gate_time_microseconds": 2.0043978277311827,
+      "eickbusch_lower_bound_microseconds": 2.3182000595102346,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 21.274613291956484,
+          "native_fidelity": 0.803577615033828,
+          "exact_fidelity": 0.8035776121575788,
+          "exact_infidelity": 0.19642238784242116
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 21.377755040768534,
+          "native_fidelity": 0.8575349786949222,
+          "exact_fidelity": 0.8575349730686589,
+          "exact_infidelity": 0.1424650269313411
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 21.098890875000507,
+          "native_fidelity": 0.7780809847435632,
+          "exact_fidelity": 0.7780812213396394,
+          "exact_infidelity": 0.22191877866036058
+        }
+      ]
+    },
+    {
+      "method": "continuous_anchors",
+      "method_label": "continuous anchors",
+      "layers": 12,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 180.37094058375806,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 59.661587208043784,
+      "native_fidelity": 0.9743641583688228,
+      "exact_fidelity": 0.9743518033617966,
+      "exact_infidelity": 0.02564819663820339,
+      "coherax_gate_time_microseconds": 2.7661064929007844,
+      "eickbusch_lower_bound_microseconds": 3.247609164744042,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 57.97838179115206,
+          "native_fidelity": 0.9691689729772067,
+          "exact_fidelity": 0.9691324778003414,
+          "exact_infidelity": 0.030867522199658604
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 59.661587208043784,
+          "native_fidelity": 0.9743641583688228,
+          "exact_fidelity": 0.9743518033617966,
+          "exact_infidelity": 0.02564819663820339
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 62.72365458402783,
+          "native_fidelity": 0.9516768475781937,
+          "exact_fidelity": 0.9516246406700368,
+          "exact_infidelity": 0.048375359329963175
+        }
+      ]
+    },
+    {
+      "method": "continuous_anchors",
+      "method_label": "continuous anchors",
+      "layers": 16,
+      "restart_count": 3,
+      "outer_steps_per_restart": 1200,
+      "total_multirestart_wall_seconds": 297.6632612091489,
+      "winning_restart": 2,
+      "winning_restart_wall_seconds": 98.17672433285043,
+      "native_fidelity": 0.9880243528547802,
+      "exact_fidelity": 0.9877528770787165,
+      "exact_infidelity": 0.012247122921283493,
+      "coherax_gate_time_microseconds": 3.316382132807613,
+      "eickbusch_lower_bound_microseconds": 3.907391188711185,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 100.18805920891464,
+          "native_fidelity": 0.9694866138523828,
+          "exact_fidelity": 0.9673525756589977,
+          "exact_infidelity": 0.03264742434100232
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 99.28132262500003,
+          "native_fidelity": 0.9858445052011541,
+          "exact_fidelity": 0.9857723254363613,
+          "exact_infidelity": 0.014227674563638715
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 98.17672433285043,
+          "native_fidelity": 0.9880243528547802,
+          "exact_fidelity": 0.9877528770787165,
+          "exact_infidelity": 0.012247122921283493
+        }
+      ]
+    },
+    {
+      "method": "continuous_anchors",
+      "method_label": "continuous anchors",
+      "layers": 20,
+      "restart_count": 3,
+      "outer_steps_per_restart": 10000,
+      "total_multirestart_wall_seconds": 2959.724973791279,
+      "winning_restart": 1,
+      "winning_restart_wall_seconds": 994.2923862501048,
+      "native_fidelity": 0.9988640328592188,
+      "exact_fidelity": 0.9987640502428712,
+      "exact_infidelity": 0.001235949757128818,
+      "coherax_gate_time_microseconds": 3.8827491657270103,
+      "eickbusch_lower_bound_microseconds": 4.895861874235362,
+      "restarts": [
+        {
+          "restart": 0,
+          "wall_seconds": 988.1098117921501,
+          "native_fidelity": 0.9941850446345808,
+          "exact_fidelity": 0.9936060977859125,
+          "exact_infidelity": 0.006393902214087532
+        },
+        {
+          "restart": 1,
+          "wall_seconds": 994.2923862501048,
+          "native_fidelity": 0.9988640328592188,
+          "exact_fidelity": 0.9987640502428712,
+          "exact_infidelity": 0.001235949757128818
+        },
+        {
+          "restart": 2,
+          "wall_seconds": 977.1397962085903,
+          "native_fidelity": 0.9922162134643263,
+          "exact_fidelity": 0.9899416707880525,
+          "exact_infidelity": 0.010058329211947492
+        }
+      ]
+    }
+  ],
+  "validations": [
+    {
+      "method": "full_coherent",
+      "layers": 4,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0000000000000004,
+      "fock_fidelity": 0.5050185127395054,
+      "absolute_difference_from_exact_analytic": 4.440892098500626e-16
+    },
+    {
+      "method": "full_coherent",
+      "layers": 8,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.8575364267465427,
+      "absolute_difference_from_exact_analytic": 1.1102230246251565e-16
+    },
+    {
+      "method": "full_coherent",
+      "layers": 12,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0000000000000004,
+      "fock_fidelity": 0.9743464725598341,
+      "absolute_difference_from_exact_analytic": 1.1102230246251565e-15
+    },
+    {
+      "method": "full_coherent",
+      "layers": 16,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999999,
+      "fock_fidelity": 0.9882809507545479,
+      "absolute_difference_from_exact_analytic": 1.1102230246251565e-16
+    },
+    {
+      "method": "full_coherent",
+      "layers": 20,
+      "fock_cutoff": 96,
+      "projected_norm": 0.999999999999361,
+      "fock_fidelity": 0.9987678758847727,
+      "absolute_difference_from_exact_analytic": 6.378231276471524e-13
+    },
+    {
+      "method": "direct_fock",
+      "layers": 4,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.5050185127395026,
+      "absolute_difference_from_exact_analytic": 4.440892098500626e-16
+    },
+    {
+      "method": "direct_fock",
+      "layers": 8,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999999,
+      "fock_fidelity": 0.8575349515326736,
+      "absolute_difference_from_exact_analytic": 3.3306690738754696e-16
+    },
+    {
+      "method": "direct_fock",
+      "layers": 12,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999998,
+      "fock_fidelity": 0.9743504453766096,
+      "absolute_difference_from_exact_analytic": 0.0
+    },
+    {
+      "method": "direct_fock",
+      "layers": 16,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0,
+      "fock_fidelity": 0.9865520321784926,
+      "absolute_difference_from_exact_analytic": 2.220446049250313e-16
+    },
+    {
+      "method": "direct_fock",
+      "layers": 20,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999993354,
+      "fock_fidelity": 0.9987675073342593,
+      "absolute_difference_from_exact_analytic": 6.649125694480063e-13
+    },
+    {
+      "method": "dense_numerical_fock",
+      "layers": 4,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999992,
+      "fock_fidelity": 0.5050185516450684,
+      "absolute_difference_from_exact_analytic": 1.2212453270876722e-15
+    },
+    {
+      "method": "dense_numerical_fock",
+      "layers": 8,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0000000000000002,
+      "fock_fidelity": 0.857536424844409,
+      "absolute_difference_from_exact_analytic": 0.0
+    },
+    {
+      "method": "dense_numerical_fock",
+      "layers": 12,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.9743453348644434,
+      "absolute_difference_from_exact_analytic": 3.3306690738754696e-16
+    },
+    {
+      "method": "dense_numerical_fock",
+      "layers": 16,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0000000000000004,
+      "fock_fidelity": 0.9882808773879211,
+      "absolute_difference_from_exact_analytic": 6.661338147750939e-16
+    },
+    {
+      "method": "dense_numerical_fock",
+      "layers": 20,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999993651,
+      "fock_fidelity": 0.9987678674594653,
+      "absolute_difference_from_exact_analytic": 6.339373470609644e-13
+    },
+    {
+      "method": "squeezed_packets",
+      "layers": 4,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.5050185127395026,
+      "absolute_difference_from_exact_analytic": 4.440892098500626e-16
+    },
+    {
+      "method": "squeezed_packets",
+      "layers": 8,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0,
+      "fock_fidelity": 0.8575349650135446,
+      "absolute_difference_from_exact_analytic": 0.0
+    },
+    {
+      "method": "squeezed_packets",
+      "layers": 12,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.9743482649697899,
+      "absolute_difference_from_exact_analytic": 2.220446049250313e-16
+    },
+    {
+      "method": "squeezed_packets",
+      "layers": 16,
+      "fock_cutoff": 96,
+      "projected_norm": 1.0,
+      "fock_fidelity": 0.9870508309509918,
+      "absolute_difference_from_exact_analytic": 2.220446049250313e-16
+    },
+    {
+      "method": "squeezed_packets",
+      "layers": 20,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999993298,
+      "fock_fidelity": 0.9987649350842798,
+      "absolute_difference_from_exact_analytic": 6.692424392440444e-13
+    },
+    {
+      "method": "continuous_anchors",
+      "layers": 4,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999996,
+      "fock_fidelity": 0.5050185127395026,
+      "absolute_difference_from_exact_analytic": 4.440892098500626e-16
+    },
+    {
+      "method": "continuous_anchors",
+      "layers": 8,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999993,
+      "fock_fidelity": 0.8575349730686597,
+      "absolute_difference_from_exact_analytic": 7.771561172376096e-16
+    },
+    {
+      "method": "continuous_anchors",
+      "layers": 12,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999999,
+      "fock_fidelity": 0.9743518033617969,
+      "absolute_difference_from_exact_analytic": 3.3306690738754696e-16
+    },
+    {
+      "method": "continuous_anchors",
+      "layers": 16,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999999994,
+      "fock_fidelity": 0.9877528770787168,
+      "absolute_difference_from_exact_analytic": 3.3306690738754696e-16
+    },
+    {
+      "method": "continuous_anchors",
+      "layers": 20,
+      "fock_cutoff": 96,
+      "projected_norm": 0.9999999999992985,
+      "fock_fidelity": 0.9987640502435718,
+      "absolute_difference_from_exact_analytic": 7.006617508409363e-13
+    }
+  ],
+  "environment": {
+    "python": "3.11.11",
+    "jax": "0.6.2",
+    "jax_devices": [
+      "TFRT_CPU_0"
+    ],
+    "dynamiqs": "0.3.3",
+    "platform": "macOS-15.5-arm64-arm-64bit"
+  }
+}
