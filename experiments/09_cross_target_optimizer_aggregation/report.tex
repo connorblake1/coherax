@@ -1,0 +1,187 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.55in]{geometry}
+\usepackage{amsmath,amssymb,booktabs,graphicx,float,microtype}
+\usepackage[T1]{fontenc}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\newcommand{\ket}[1]{\lvert #1\rangle}
+\newcommand{\bra}[1]{\langle #1\rvert}
+\begin{document}
+
+\begin{center}
+{\Large\bfseries Experiment 09: cross-target optimizer aggregation}\\[-1pt]
+{\small 7,500 cluster restarts, exact common scoring, and matched-hardware timing ratios}
+\end{center}
+
+\textbf{What this experiment does.}
+This report performs no new circuit optimization. It validates and combines
+the complete cluster outputs of Experiments 06--08. The inputs contain three
+target states, five representations, five circuit depths
+$n\in\{4,8,12,16,20\}$, and 100 restarts per target/representation/depth:
+\[
+3\times5\times5\times100=7{,}500
+\]
+separately timed optimizer-run records. At fixed target, depth, and restart
+index, the five methods intentionally share the same initial circuit; these
+five observations are paired, not statistically independent. The aggregation
+stops rather than silently using a partial result if any restart or method/depth
+pair is absent.
+
+\textbf{Targets.}
+Every circuit starts in qubit ground state and oscillator vacuum. The targets
+are
+\[
+\ket{\tau_6}=\frac{\ket9+\ket{10}}{\sqrt2},\qquad
+\ket{\tau_8}=\frac{\ket{-2}+\ket2}{\sqrt{2+2e^{-8}}},
+\]
+and a finite hexagonal GKP logical-zero state. For the latter, define
+$\alpha=\sqrt{\pi/\sqrt3}$, $\eta=e^{2\pi i/3}\alpha$, retain integer pairs
+$\max(|m|,|l|,|m-l|)\le14$ with even $m$, let $k=m/2$ and
+$d_{ml}=m\alpha+l\eta$, and normalize
+\[
+\ket{\tau_7}\propto\sum_{m,l}
+e^{-i\pi kl-0.2^2|d_{ml}|^2}\ket{d_{ml}}.
+\]
+Here $\ket z$ denotes an oscillator coherent state centered at complex
+phase-space position $z$.
+
+\textbf{Five representations.}
+Full coherent paths keeps all $2^n$ analytic paths and has no oscillator
+cutoff. Analytic Fock carries two 48-entry photon-number vectors and constructs
+the projected infinite displacement using
+\[
+D(a)\ket0=\ket a,\qquad
+D(a)\ket r=(\hat a^\dagger-a^*)D(a)\ket{r-1}/\sqrt r.
+\]
+Dense numerical Fock instead truncates $\hat a$ first and materializes
+$D_{48}^{\rm num}(a)=\exp(a\hat a_{48}^\dagger-a^*\hat a_{48})$ and each
+$96\times96$ joint layer unitary. Continuous anchors keeps 32 movable coherent
+packets per qubit branch, while squeezed packets adds one fitted complex
+squeeze per packet. Both packet methods seed from residual pivots, move centers
+with inner Adam updates, and globally refit coefficients by
+\[
+x=(B^\dagger B+10^{-9}I)^{-1}B^\dagger v.
+\]
+Their discrete selection uses a straight-through gradient approximation.
+
+\textbf{Exact common score and best-of-100 result.}
+Write the final joint state as
+$\ket\Psi=\sum_{q=0}^1\ket q\ket{\psi_q}$. For target $t$, method $m$,
+depth $n$, and restart $r$, the source experiments rescore the saved physical
+circuit with
+\[
+F_{t,m,n,r}=\sum_{q=0}^1|\langle\tau_t|\psi_{q,m,n,r}\rangle|^2.
+\]
+The qubit is traced out. This score uses analytic coherent-state overlaps and
+does not use the Fock or packet approximation. ``Exact'' means exact for the
+ideal stated circuit and target up to floating-point arithmetic; hardware noise
+is absent. The reported winner and error are
+\[
+F^*_{t,m,n}=\max_{0\le r<100}F_{t,m,n,r},\qquad
+\epsilon^*_{t,m,n}=1-F^*_{t,m,n}.
+\]
+
+\IfFileExists{report_results.tex}{\input{report_results.tex}}{
+\textbf{Generated results are absent. Run the Experiment 09 workflow first.}}
+
+\textbf{Best quality and restart reliability.}
+The heatmap reports $-\log_{10}(1-F^*)$, the number of decimal accuracy digits
+in the best observed exact fidelity. A best-of-100 point alone can hide an
+unreliable optimizer. For threshold $\tau$, restart reliability is
+\[
+\widehat p_\tau=\frac1{100}\sum_{r=0}^{99}
+\mathbf1[F_{t,m,n,r}\ge\tau].
+\]
+The second figure uses $\tau=0.99$ and 95\% Wilson binomial intervals.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/best_infidelity_heatmap.png}
+\caption{Best exact state-preparation accuracy among 100 restarts. Values are
+$-\log_{10}(1-F^*)$; larger is better.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/exact_infidelity_vs_layers.png}
+\caption{Best exact infidelity. The vertical axis is logarithmic and lower is
+better. Every point is selected only by the common exact rescore.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/restart_success_fidelity_0p99.png}
+\caption{Fraction of the 100 restarts reaching exact fidelity at least 0.99.
+Error bars are 95\% Wilson intervals.}
+\end{figure}
+
+\textbf{Computer search time.}
+For one target, representation, and depth, raw search cost is
+\[
+C_{t,m,n}=\sum_{r=0}^{99}T_{t,m,n,r},
+\]
+where $T$ includes optimization and exact rescoring. This is a sum of process
+wall times, not Slurm queue time or parallel-array calendar time. Different
+targets can run on different CPU models, so raw cross-target times are not
+treated as hardware-controlled comparisons.
+
+Within one target, array restart $r$ runs all 25 method/depth cases on one
+allocation. For source blocks whose recorded hardware signature is internally
+matched, the paired speedup is
+\[
+S_{t,m,n,r}=\frac{T_{t,{\rm full},n,r}}{T_{t,m,n,r}}.
+\]
+The plot reports its median and interquartile range. $S>1$ means the method is
+faster than full coherent paths on the same target, depth, restart index, and
+hardware block.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/total_search_time_vs_layers.png}
+\caption{Raw sum of 100 process wall times. Panels keep the targets separate;
+the vertical axis is logarithmic.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/paired_speedup_vs_full_coherent.png}
+\caption{Matched-hardware optimizer speedup relative to full coherent paths.
+Lines are medians; bands are interquartile ranges.}
+\end{figure}
+
+\textbf{Physical circuit duration.}
+Computer search time and hardware execution time are different quantities.
+For the winning sequence with ECD amplitudes $\beta_j$, the Coherax estimate is
+\[
+T_C=\sum_j\left[24\,{\rm ns}+\max\left(
+\frac{|\beta_j|}{(2\pi\,50\,{\rm kHz})20},48\,{\rm ns}\right)\right].
+\]
+The separately labelled Eickbusch-hardware quantity is
+\[
+T_{E,{\rm LB}}=\sum_j\max\left(
+\frac{|\beta_j|}{(2\pi\,33\,{\rm kHz})30},224\,{\rm ns}\right).
+\]
+The latter is a lower bound, not a compiled waveform duration.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/coherax_gate_time_vs_layers.png}
+\caption{Coherax physical gate-time estimate for each best-of-100 circuit.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figs/eickbusch_gate_time_bound_vs_layers.png}
+\caption{Eickbusch-hardware lower bound for each best-of-100 circuit.}
+\end{figure}
+
+\textbf{Limits of the aggregate.}
+These are best-observed random-search outcomes, not global-optimum proofs.
+Best-of-100 quality and success probability answer different questions and
+must be read together. The geometric mean error in the method table is a
+descriptive summary across heterogeneous target states, not a new physical
+fidelity. Fock methods retain finite-cutoff effects during training; packet
+methods use heuristic projection gradients. Exact final rescoring removes
+those approximations from winner evaluation, but cannot remove optimizer bias.
+
+\end{document}
