@@ -1,0 +1,20 @@
+2026-08-12 01:09:47.568049: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 01:09:48.459466: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 2m0.891529957s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 01:17:12.486676: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 01:19:26.153106: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 4m13.666557887s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+srun: Step created for StepId=20262184.20
+srun: Step created for StepId=20262184.23

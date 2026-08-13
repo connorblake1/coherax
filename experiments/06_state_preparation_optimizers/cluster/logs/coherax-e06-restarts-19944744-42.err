@@ -1,0 +1,20 @@
+2026-08-12 07:49:07.262801: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 07:49:36.121889: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 2m28.860032703s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 07:57:11.099339: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 07:59:34.445650: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 4m23.346437119s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+srun: error: Unable to confirm allocation for job 20277921: Connection reset by peer
+srun: Check SLURM_JOB_ID environment variable. Expired or invalid job 20277921

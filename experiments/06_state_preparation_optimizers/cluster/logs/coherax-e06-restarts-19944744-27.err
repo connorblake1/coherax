@@ -1,0 +1,9 @@
+2026-08-10 23:52:03.197847: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-10 23:52:44.878099: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 2m41.681346139s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************

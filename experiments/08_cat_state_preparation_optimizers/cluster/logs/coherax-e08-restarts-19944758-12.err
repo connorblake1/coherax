@@ -1,0 +1,11 @@
+2026-08-10 11:15:25.769478: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-10 11:15:54.464181: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 2m28.69528169s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+srun: Job 20077597 step creation temporarily disabled, retrying (Requested nodes are busy)
+srun: Step created for StepId=20077597.23

@@ -1,0 +1,12 @@
+2026-08-12 15:50:10.073522: E external/xla/xla/service/slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+2026-08-12 15:52:01.481990: E external/xla/xla/service/slow_operation_alarm.cc:140] The operation took 3m51.408540615s
+
+********************************
+[Compiling module jit_train_all_steps] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-08-12T17:32:04.897] error: *** STEP 20302170.24 ON node1615 CANCELLED AT 2026-08-12T17:32:04 DUE to SIGNAL Terminated ***
+[2026-08-12T17:32:04.897] error: *** JOB 20302170 ON node1615 CANCELLED AT 2026-08-12T17:32:04 DUE to SIGNAL Terminated ***
